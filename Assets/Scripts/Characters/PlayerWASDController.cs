@@ -13,7 +13,7 @@ namespace Woken.Characters
         public float MoveSpeed => moveSpeed;
         private void Awake()
         {
-            body = GetComponent<Rigidbody2D>(); body.gravityScale = 0f; body.freezeRotation = true;
+            body = GetComponent<Rigidbody2D>(); body.bodyType = RigidbodyType2D.Dynamic; body.gravityScale = 0f; body.freezeRotation = true;
             body.interpolation = RigidbodyInterpolation2D.Interpolate; body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         }
         private void Update()

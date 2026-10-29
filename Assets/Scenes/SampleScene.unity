@@ -250,9 +250,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 519420028}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b9db89d5b1e1ac4385e47c2afae35db, type: 3}
+  m_Script: {fileID: 11500000, guid: 500f0fcadb814d308e6834a7329d8041, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier: Assembly-CSharp::Woken.Gameplay.WokenLevelBootstrap
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
