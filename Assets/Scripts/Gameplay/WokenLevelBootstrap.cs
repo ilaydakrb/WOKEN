@@ -1,6 +1,7 @@
 using System.Collections;
 using NavMeshPlus.Components;
 using NavMeshPlus.Extensions;
+using UnityEngine.InputSystem;
 using UnityEngine.AI;
 using UnityEngine;
 using Woken.Characters;
@@ -16,6 +17,22 @@ namespace Woken.Gameplay
         private static Sprite pixel;
 
         private Transform player;
+        private Transform robot;
+        private Transform firstFloorRoot;
+        private Transform secondFloorRoot;
+        private Transform firstFloorNorthDoor;
+        private Transform firstFloorSouthDoor;
+        private Transform secondFloorNorthDoor;
+        private Transform secondFloorSouthDoor;
+        private Rigidbody2D playerBody;
+        private Rigidbody2D robotBody;
+        private PlayerWASDController playerController;
+        private RobotMovementController robotController;
+        private CharacterAnimator playerAnimator;
+        private CharacterAnimator robotAnimator;
+        private Vector2 lastPlayerFacing = Vector2.down;
+        private bool elevatorTransitioning;
+        private int activeFloor = 1;
         private Camera sceneCamera;
 
         private void Awake()
@@ -36,6 +53,7 @@ namespace Woken.Gameplay
                 new Color32(29, 37, 42, 255);
             sceneCamera.clearFlags = CameraClearFlags.SolidColor;
 
+            firstFloorRoot = new GameObject("First Floor - active").transform;
             BuildFloor();
             BuildWalls();
             BuildLaboratory();
@@ -69,6 +87,140 @@ namespace Woken.Gameplay
                 target,
                 8f * Time.deltaTime
             );
+        }
+
+        private void Update()
+        {
+            if (activeFloor != 1 || elevatorTransitioning || playerController == null)
+                return;
+
+            Vector2 input = playerController.MoveInput;
+            if (input.sqrMagnitude > 0.05f)
+                lastPlayerFacing = input.normalized;
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null || !keyboard.fKey.wasPressedThisFrame)
+                return;
+
+            bool closeEnough = player.position.x >= 12f
+                && player.position.x <= 13.45f
+                && Mathf.Abs(player.position.y + 4f) <= 0.5f;
+            bool facingElevator = lastPlayerFacing.x > 0.7f
+                && Mathf.Abs(lastPlayerFacing.y) < 0.7f;
+            if (closeEnough && facingElevator)
+                StartCoroutine(UseElevator());
+        }
+
+        private IEnumerator UseElevator()
+        {
+            elevatorTransitioning = true;
+            playerController.enabled = false;
+            if (robotController != null)
+                robotController.enabled = false;
+
+            yield return StartCoroutine(AnimateElevatorDoors(
+                firstFloorNorthDoor, firstFloorSouthDoor, true, 0.9f));
+
+            Coroutine playerBoarding = StartCoroutine(MoveActorTo(
+                playerBody, playerAnimator, new Vector2(15.15f, -4f), 3.3f));
+            Coroutine robotBoarding = StartCoroutine(MoveActorTo(
+                robotBody, robotAnimator, new Vector2(14.55f, -4f), 3.3f));
+            yield return playerBoarding;
+            yield return robotBoarding;
+
+            yield return StartCoroutine(AnimateElevatorDoors(
+                firstFloorNorthDoor, firstFloorSouthDoor, false, 0.8f));
+            yield return new WaitForSeconds(0.35f);
+
+            firstFloorRoot.gameObject.SetActive(false);
+            secondFloorRoot.gameObject.SetActive(true);
+            Physics2D.SyncTransforms();
+            activeFloor = 2;
+
+            GameObject fog = GameObject.Find("Unexplored areas");
+            if (fog != null)
+                fog.SetActive(false);
+
+            GameObject routeCanvas = GameObject.Find("Robot Route Guide Canvas");
+            if (routeCanvas != null)
+                routeCanvas.SetActive(false);
+
+            yield return StartCoroutine(AnimateElevatorDoors(
+                secondFloorNorthDoor, secondFloorSouthDoor, true, 0.9f));
+
+            Coroutine playerExiting = StartCoroutine(MoveActorTo(
+                playerBody, playerAnimator, new Vector2(13.15f, -4f), 3.3f));
+            Coroutine robotExiting = StartCoroutine(MoveActorTo(
+                robotBody, robotAnimator, new Vector2(12.6f, -4f), 3.3f));
+            yield return playerExiting;
+            yield return robotExiting;
+
+            NavMeshAgent robotAgent = robot.GetComponent<NavMeshAgent>();
+            if (robotAgent != null && robotAgent.enabled)
+                robotAgent.Warp(robotBody.position);
+            robotController.ResumeFollowingPlayer();
+
+            playerController.enabled = true;
+            if (robotController != null)
+                robotController.enabled = true;
+            elevatorTransitioning = false;
+        }
+
+        private IEnumerator AnimateElevatorDoors(
+            Transform northDoor,
+            Transform southDoor,
+            bool open,
+            float duration)
+        {
+            if (northDoor == null || southDoor == null)
+                yield break;
+
+            Vector3 northStart = northDoor.position;
+            Vector3 southStart = southDoor.position;
+            Vector3 northClosed = new Vector3(13.86f, -3.5f, northStart.z);
+            Vector3 southClosed = new Vector3(13.86f, -4.5f, southStart.z);
+            Vector3 northTarget = open
+                ? northClosed + Vector3.up * 0.68f
+                : northClosed;
+            Vector3 southTarget = open
+                ? southClosed + Vector3.down * 0.68f
+                : southClosed;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+                northDoor.position = Vector3.Lerp(northStart, northTarget, t);
+                southDoor.position = Vector3.Lerp(southStart, southTarget, t);
+                yield return null;
+            }
+
+            northDoor.position = northTarget;
+            southDoor.position = southTarget;
+            Physics2D.SyncTransforms();
+        }
+
+        private IEnumerator MoveActorTo(
+            Rigidbody2D body,
+            CharacterAnimator animator,
+            Vector2 target,
+            float speed)
+        {
+            while (body != null && Vector2.Distance(body.position, target) > 0.025f)
+            {
+                Vector2 direction = (target - body.position).normalized;
+                body.MovePosition(Vector2.MoveTowards(
+                    body.position, target, speed * Time.deltaTime));
+                if (animator != null)
+                    animator.SetMotion(direction);
+                yield return null;
+            }
+
+            if (body != null)
+                body.position = target;
+            if (animator != null)
+                animator.SetMotion(Vector2.zero);
         }
 
         private void BuildFloor()
@@ -134,6 +286,7 @@ namespace Woken.Gameplay
             var secondFloor = new GameObject("Second Floor - staged (inactive)");
             secondFloor.SetActive(false);
             Transform root = secondFloor.transform;
+            secondFloorRoot = root;
 
             RectPiece("Floor 2 - entrance", new Vector2(-10, 0), new Vector2(8, 16), new Color32(191, 190, 178, 255), -10, false, root);
             RectPiece("Floor 2 - route hall", new Vector2(0, 0), new Vector2(12, 16), new Color32(166, 174, 173, 255), -10, false, root);
@@ -148,19 +301,41 @@ namespace Woken.Gameplay
             Color steel = new Color32(119, 132, 135, 255);
             Color lightSteel = new Color32(165, 175, 175, 255);
             Color dark = new Color32(49, 60, 64, 255);
-            RectPiece("Floor 2 - elevator wall mounted faceplate", new Vector2(13.82f, -4f), new Vector2(.25f, 2f), steel, 1, true, root);
+            RectPiece("Floor 2 - elevator wall mounted faceplate", new Vector2(13.82f, -4f), new Vector2(.25f, 2f), steel, 1, false, root);
             RectPiece("Floor 2 - elevator jamb north", new Vector2(13.78f, -2.95f), new Vector2(.42f, .12f), lightSteel, 3, true, root);
             RectPiece("Floor 2 - elevator jamb south", new Vector2(13.78f, -5.05f), new Vector2(.42f, .12f), lightSteel, 3, true, root);
             RectPiece("Floor 2 - elevator door leaf north", new Vector2(13.86f, -3.5f), new Vector2(.3f, .94f), new Color32(113, 126, 130, 255), 4, true, root);
             RectPiece("Floor 2 - elevator door leaf south", new Vector2(13.86f, -4.5f), new Vector2(.3f, .94f), new Color32(128, 140, 143, 255), 4, true, root);
-            RectPiece("Floor 2 - elevator door inset north", new Vector2(13.84f, -3.5f), new Vector2(.045f, .78f), new Color32(82, 94, 98, 255), 5, false, root);
-            RectPiece("Floor 2 - elevator door inset south", new Vector2(13.84f, -4.5f), new Vector2(.045f, .78f), new Color32(94, 106, 109, 255), 5, false, root);
-            RectPiece("Floor 2 - elevator center seam", new Vector2(13.86f, -4f), new Vector2(.28f, .035f), new Color32(38, 47, 51, 255), 6, false, root);
+            RectPiece("Floor 2 - elevator door inset north", new Vector2(13.84f, -3.5f), new Vector2(.045f, .78f), new Color32(82, 94, 98, 255), 5, false, root.Find("Floor 2 - elevator door leaf north"));
+            RectPiece("Floor 2 - elevator door inset south", new Vector2(13.84f, -4.5f), new Vector2(.045f, .78f), new Color32(94, 106, 109, 255), 5, false, root.Find("Floor 2 - elevator door leaf south"));
+            RectPiece("Floor 2 - elevator seam north", new Vector2(13.86f, -3.97f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, root.Find("Floor 2 - elevator door leaf north"));
+            RectPiece("Floor 2 - elevator seam south", new Vector2(13.86f, -4.03f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, root.Find("Floor 2 - elevator door leaf south"));
             RectPiece("Floor 2 - elevator top indicator housing", new Vector2(13.78f, -2.78f), new Vector2(.3f, .18f), dark, 3, true, root);
             RectPiece("Floor 2 - elevator top indicator", new Vector2(13.77f, -2.78f), new Vector2(.12f, .07f), new Color32(99, 190, 171, 255), 4, false, root);
-            RectPiece("Floor 2 - elevator warning strip north", new Vector2(13.68f, -3.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root);
-            RectPiece("Floor 2 - elevator warning strip south", new Vector2(13.68f, -4.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root);
+            RectPiece("Floor 2 - elevator warning strip north", new Vector2(13.68f, -3.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root.Find("Floor 2 - elevator door leaf north"));
+            RectPiece("Floor 2 - elevator warning strip south", new Vector2(13.68f, -4.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root.Find("Floor 2 - elevator door leaf south"));
             RectPiece("Floor 2 - elevator threshold", new Vector2(13.52f, -4f), new Vector2(.1f, 1.9f), lightSteel, 2, false, root);
+
+            BuildElevatorCabin(root, "Floor 2 - elevator cabin");
+            secondFloorNorthDoor = root.Find("Floor 2 - elevator door leaf north");
+            secondFloorSouthDoor = root.Find("Floor 2 - elevator door leaf south");
+        }
+
+        private void BuildElevatorCabin(Transform root, string prefix)
+        {
+            Color floor = new Color32(107, 119, 120, 255);
+            Color wall = new Color32(65, 76, 79, 255);
+            Color trim = new Color32(151, 163, 162, 255);
+
+            // An open-front, square cabin extends beyond the building edge so both actors
+            // can stand inside while the floor geometry swaps underneath them.
+            RectPiece(prefix + " floor", new Vector2(15.22f, -4f), new Vector2(2.8f, 2.8f), floor, -8, false, root);
+            RectPiece(prefix + " north wall", new Vector2(15.22f, -2.62f), new Vector2(2.8f, .12f), wall, 1, true, root);
+            RectPiece(prefix + " south wall", new Vector2(15.22f, -5.38f), new Vector2(2.8f, .12f), wall, 1, true, root);
+            RectPiece(prefix + " rear wall", new Vector2(16.58f, -4f), new Vector2(.12f, 2.8f), wall, 1, true, root);
+            RectPiece(prefix + " north trim", new Vector2(15.22f, -2.69f), new Vector2(2.68f, .035f), trim, 2, false, root);
+            RectPiece(prefix + " south trim", new Vector2(15.22f, -5.31f), new Vector2(2.68f, .035f), trim, 2, false, root);
+            RectPiece(prefix + " rear trim", new Vector2(16.51f, -4f), new Vector2(.035f, 2.68f), trim, 2, false, root);
         }
 
         private void BuildWalls()
@@ -525,18 +700,19 @@ namespace Woken.Gameplay
             RectPiece("Tool board fastener right", new Vector2(7.86f, -1.05f), new Vector2(.07f, .07f), lightSteel, 3, false);
 
             // Surface-mounted elevator assembly sits on the east wall; its two leaves remain separate for future animation.
-            RectPiece("Elevator wall mounted faceplate", new Vector2(13.82f, -4f), new Vector2(.25f, 2f), new Color32(119, 132, 135, 255), 1, true);
+            RectPiece("Elevator wall mounted faceplate", new Vector2(13.82f, -4f), new Vector2(.25f, 2f), new Color32(119, 132, 135, 255), 1, false);
             RectPiece("Elevator jamb north", new Vector2(13.78f, -2.95f), new Vector2(.42f, .12f), lightSteel, 3, true);
             RectPiece("Elevator jamb south", new Vector2(13.78f, -5.05f), new Vector2(.42f, .12f), lightSteel, 3, true);
             RectPiece("Elevator door leaf north", new Vector2(13.86f, -3.5f), new Vector2(.3f, .94f), new Color32(113, 126, 130, 255), 4, true);
             RectPiece("Elevator door leaf south", new Vector2(13.86f, -4.5f), new Vector2(.3f, .94f), new Color32(128, 140, 143, 255), 4, true);
-            RectPiece("Elevator door inset north", new Vector2(13.84f, -3.5f), new Vector2(.045f, .78f), new Color32(82, 94, 98, 255), 5, false);
-            RectPiece("Elevator door inset south", new Vector2(13.84f, -4.5f), new Vector2(.045f, .78f), new Color32(94, 106, 109, 255), 5, false);
-            RectPiece("Elevator center seam", new Vector2(13.86f, -4f), new Vector2(.28f, .035f), new Color32(38, 47, 51, 255), 6, false);
+            RectPiece("Elevator door inset north", new Vector2(13.84f, -3.5f), new Vector2(.045f, .78f), new Color32(82, 94, 98, 255), 5, false, firstFloorRoot.Find("Elevator door leaf north"));
+            RectPiece("Elevator door inset south", new Vector2(13.84f, -4.5f), new Vector2(.045f, .78f), new Color32(94, 106, 109, 255), 5, false, firstFloorRoot.Find("Elevator door leaf south"));
+            RectPiece("Elevator seam north", new Vector2(13.86f, -3.97f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, firstFloorRoot.Find("Elevator door leaf north"));
+            RectPiece("Elevator seam south", new Vector2(13.86f, -4.03f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, firstFloorRoot.Find("Elevator door leaf south"));
             RectPiece("Elevator top indicator housing", new Vector2(13.78f, -2.78f), new Vector2(.3f, .18f), dark, 3, true);
             RectPiece("Elevator top indicator", new Vector2(13.77f, -2.78f), new Vector2(.12f, .07f), new Color32(99, 190, 171, 255), 4, false);
-            RectPiece("Elevator door warning strip north", new Vector2(13.68f, -3.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false);
-            RectPiece("Elevator door warning strip south", new Vector2(13.68f, -4.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false);
+            RectPiece("Elevator door warning strip north", new Vector2(13.68f, -3.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, firstFloorRoot.Find("Elevator door leaf north"));
+            RectPiece("Elevator door warning strip south", new Vector2(13.68f, -4.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, firstFloorRoot.Find("Elevator door leaf south"));
 
             // Battery bay is mounted against the east wall directly below the elevator.
             RectPiece("Battery bay backing", new Vector2(13.48f, -5.72f), new Vector2(.42f, 1.16f), dark, 0, true);
@@ -559,6 +735,10 @@ namespace Woken.Gameplay
             RectPiece("Service panel indicator left", new Vector2(12.51f, -1.92f), new Vector2(.07f, .07f), new Color32(100, 185, 150, 255), 3, false);
             RectPiece("Service panel indicator right", new Vector2(12.91f, -1.92f), new Vector2(.07f, .07f), new Color32(205, 174, 100, 255), 3, false);
             RectPiece("Elevator threshold", new Vector2(13.52f, -4f), new Vector2(.1f, 1.9f), lightSteel, 2, false);
+
+            BuildElevatorCabin(firstFloorRoot, "Elevator cabin");
+            firstFloorNorthDoor = firstFloorRoot.Find("Elevator door leaf north");
+            firstFloorSouthDoor = firstFloorRoot.Find("Elevator door leaf south");
         }
 
         private void CreateStorageBox(string name, Vector2 position)
@@ -570,6 +750,7 @@ namespace Woken.Gameplay
         private void CreateBatteryCrate(Vector2 position, Vector2 size)
         {
             var crate = new GameObject("Battery crate");
+            crate.transform.SetParent(firstFloorRoot, true);
             crate.transform.position = position;
             crate.transform.localScale = new Vector3(size.x, size.y, 1f);
             var body = crate.AddComponent<SpriteRenderer>();
@@ -647,14 +828,14 @@ namespace Woken.Gameplay
                 spawnHit.position = robotSpawn;
             }
 
-            GameObject robot = CreateCharacter("Companion Robot", spawnHit.position, true);
-            Rigidbody2D robotBody = robot.GetComponent<Rigidbody2D>();
+            GameObject robotObject = CreateCharacter("Companion Robot", spawnHit.position, true);
+            robot = robotObject.transform;
+            robotBody = robotObject.GetComponent<Rigidbody2D>();
             if (robotBody != null)
                 robotBody.position = spawnHit.position;
 
             // Robotun başlangıçta aşağıya doğru baköasını sağla.
-            CharacterAnimator robotAnimator =
-                robot.GetComponent<CharacterAnimator>();
+            robotAnimator = robotObject.GetComponent<CharacterAnimator>();
 
             if (robotAnimator != null)
             {
@@ -662,13 +843,16 @@ namespace Woken.Gameplay
             }
 
             // Mevcut takip sistemini koru.
-            RobotMovementController robotMovement =
-                robot.AddComponent<RobotMovementController>();
+            robotController = robotObject.AddComponent<RobotMovementController>();
 
-            robotMovement.SetPlayer(player);
+            robotController.SetPlayer(player);
 
             RobotRouteGuideUI routeGuide = gameObject.AddComponent<RobotRouteGuideUI>();
-            routeGuide.Initialize(player, robot.transform, robotMovement, sceneCamera);
+            routeGuide.Initialize(player, robot, robotController, sceneCamera);
+
+            playerBody = player.GetComponent<Rigidbody2D>();
+            playerController = player.GetComponent<PlayerWASDController>();
+            playerAnimator = player.GetComponent<CharacterAnimator>();
         }
 
         private GameObject CreateCharacter(
@@ -745,6 +929,11 @@ namespace Woken.Gameplay
 
             SpriteRenderer renderer =
                 piece.AddComponent<SpriteRenderer>();
+
+            if (parent == null)
+            {
+                parent = firstFloorRoot;
+            }
 
             if (parent != null)
             {
