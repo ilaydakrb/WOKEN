@@ -1,4 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
+using NavMeshPlus.Components;
+using NavMeshPlus.Extensions;
+using UnityEngine.AI;
 using UnityEngine;
 using Woken.Characters;
 
@@ -46,8 +50,14 @@ namespace Woken.Gameplay
             BuildWalls();
             BuildLaboratory();
             BuildMaze();
-            BuildCharacters();
+        }
 
+        private IEnumerator Start()
+        {
+            BuildNavigationSurface();
+            yield return null;
+
+            BuildCharacters();
             gameObject.AddComponent<WorldExplorationFog>();
         }
 
@@ -409,6 +419,21 @@ namespace Woken.Gameplay
             );
         }
 
+        private void BuildNavigationSurface()
+        {
+            var surfaceObject = new GameObject("2D Navigation Surface");
+            surfaceObject.transform.rotation = Quaternion.Euler(270f, 0f, 0f);
+
+            NavMeshSurface surface = surfaceObject.AddComponent<NavMeshSurface>();
+            surface.collectObjects = CollectObjects.All;
+            surface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
+            surface.hideEditorLogs = true;
+
+            surfaceObject.AddComponent<CollectSources2d>();
+            surface.BuildNavMesh();
+
+        }
+
         private void BuildCharacters()
         {
             // Oyuncuyu oluştur.
@@ -421,12 +446,32 @@ namespace Woken.Gameplay
             sceneCamera.transform.position =
                 player.position + new Vector3(0f, 0.2f, -10f);
 
-            // Robot oyuncunun solunda, aynı yatay hizada başlar.
-            GameObject robot = CreateCharacter(
-                "Companion Robot",
-                new Vector2(-12.7f, -3.2f),
-                true
-            );
+            // Robotu oyuncunun yanında ve aynı Y koordinatında başlat.
+            // NavMesh örneklemesi Y ekseninde kaydırmasın diye küçük yarıçap kullan;
+            // sol taraf uygun değilse aynı hizada sağ tarafı dene.
+            Vector3 robotSpawn = new Vector3(player.position.x - 2f, player.position.y, 0f);
+            int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+            int walkableAreaMask = notWalkableArea >= 0
+                ? NavMesh.AllAreas & ~(1 << notWalkableArea)
+                : NavMesh.AllAreas;
+
+            bool foundSpawn = NavMesh.SamplePosition(robotSpawn, out NavMeshHit spawnHit, 0.45f, walkableAreaMask);
+            if (!foundSpawn)
+            {
+                robotSpawn.x = player.position.x + 2f;
+                foundSpawn = NavMesh.SamplePosition(robotSpawn, out spawnHit, 0.45f, walkableAreaMask);
+            }
+
+            if (!foundSpawn)
+            {
+                Debug.LogError("Oyuncuyla aynı hizada robot için yürünebilir başlangıç noktası bulunamadı.");
+                spawnHit.position = robotSpawn;
+            }
+
+            GameObject robot = CreateCharacter("Companion Robot", spawnHit.position, true);
+            Rigidbody2D robotBody = robot.GetComponent<Rigidbody2D>();
+            if (robotBody != null)
+                robotBody.position = spawnHit.position;
 
             // Robotun başlangıçta aşağıya doğru baköasını sağla.
             CharacterAnimator robotAnimator =
@@ -522,8 +567,11 @@ namespace Woken.Gameplay
             renderer.color = color;
             renderer.sortingOrder = sorting;
 
+            NavMeshModifier navMeshModifier = piece.AddComponent<NavMeshModifier>();
             if (collider)
             {
+                navMeshModifier.overrideArea = true;
+                navMeshModifier.area = NavMesh.GetAreaFromName("Not Walkable");
                 piece.AddComponent<BoxCollider2D>();
             }
         }

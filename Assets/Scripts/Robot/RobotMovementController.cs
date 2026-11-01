@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 using Woken.Gameplay;
 
 namespace Woken.Characters
@@ -13,19 +13,21 @@ namespace Woken.Characters
     }
 
     [RequireComponent(typeof(Rigidbody2D), typeof(CircleCollider2D), typeof(CharacterAnimator))]
+    [RequireComponent(typeof(NavMeshAgent))]
     public sealed class RobotMovementController : MonoBehaviour
     {
         [Header("Follow Settings")]
         [SerializeField] private float followDistance = 2f;
-        [SerializeField] private float moveSpeed = 3.4f;
+        [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float stopTolerance = 0.1f;
 
         [Header("Task Settings")]
         [SerializeField] private float taskArrivalTolerance = 0.3f;
+        [SerializeField] private float navMeshSampleDistance = 2f;
+        [SerializeField] private float navMeshAttachDistance = 0.45f;
 
-        [Header("Route Settings")]
+        [Header("Navigation Settings")]
         [SerializeField] private float routeUpdateInterval = 0.3f;
-        [SerializeField] private float waypointTolerance = 0.15f;
         [SerializeField] private float minimumTargetMovement = 0.4f;
 
         private enum MovementMode
@@ -37,14 +39,12 @@ namespace Woken.Characters
         private Rigidbody2D body;
         private Transform player;
         private CharacterAnimator animator;
+        private NavMeshAgent navigationAgent;
         private MovementMode mode = MovementMode.FollowPlayer;
-        private Vector2 taskTarget;
-
-        private List<Vector2> currentPath = new List<Vector2>();
-        private int currentWaypoint;
+        private Vector3 taskTarget;
+        private Vector3 currentDestination;
         private float routeUpdateTimer;
-        private Vector2 lastRouteTarget;
-        private bool hasRoute;
+        private bool hasDestination;
 
         /// <summary>Raised when a move task completes, is cancelled, or has no route.</summary>
         public event Action<RobotTaskResult> TaskFinished;
@@ -56,46 +56,61 @@ namespace Woken.Characters
         {
             body = GetComponent<Rigidbody2D>();
             animator = GetComponent<CharacterAnimator>();
+            navigationAgent = GetComponent<NavMeshAgent>();
 
             if (body != null)
             {
-                body.bodyType = RigidbodyType2D.Dynamic;
+                body.bodyType = RigidbodyType2D.Kinematic;
                 body.gravityScale = 0f;
                 body.freezeRotation = true;
                 body.interpolation = RigidbodyInterpolation2D.Interpolate;
                 body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            }
+
+            if (navigationAgent != null)
+            {
+                navigationAgent.updatePosition = false;
+                navigationAgent.updateRotation = false;
+                navigationAgent.updateUpAxis = false;
+                navigationAgent.speed = moveSpeed;
+                navigationAgent.acceleration = moveSpeed * 8f;
+                navigationAgent.angularSpeed = 0f;
+                navigationAgent.radius = 0.27f;
+                navigationAgent.height = 1f;
+                navigationAgent.stoppingDistance = 0.05f;
+                int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+                if (notWalkableArea >= 0)
+                    navigationAgent.areaMask = NavMesh.AllAreas & ~(1 << notWalkableArea);
             }
         }
 
         public void SetPlayer(Transform playerTransform)
         {
             player = playerTransform;
-            ResetRoute();
+            ClearDestination();
+
+            // NavMesh örneklemesi spawn noktasını birkaç santim kaydırabilir.
+            // Takip sistemi ilk karede robotu başka bir rotaya çekmesin; başlangıç
+            // aralığını gerçek spawn konumuna göre ayarla.
+            if (player != null && body != null)
+                followDistance = Vector2.Distance(body.position, player.position);
         }
 
         /// <summary>
-        /// Sends the robot to a world position. Returns false and keeps follow mode
-        /// if the route planner cannot find a route.
+        /// Sends the robot to a world position using the baked 2D NavMesh.
+        /// Returns false and keeps follow mode if no complete route exists.
         /// </summary>
         public bool StartMoveTask(Vector2 worldTarget)
         {
-            if (body == null)
-                body = GetComponent<Rigidbody2D>();
+            if (body == null || navigationAgent == null || !TryPlaceAgentOnNavMesh())
+                return FailToStartTask();
 
-            if (body == null)
-                return false;
+            if (!TrySetDestination(worldTarget))
+                return FailToStartTask();
 
-            List<Vector2> path = GridRoutePlanner.FindPath(body.position, worldTarget);
-            if (path == null || path.Count == 0)
-            {
-                StopMovement();
-                TaskFinished?.Invoke(RobotTaskResult.NoRoute);
-                return false;
-            }
-
-            taskTarget = worldTarget;
             mode = MovementMode.MoveToTaskTarget;
-            SetRoute(path, worldTarget);
+            taskTarget = currentDestination;
+            routeUpdateTimer = 0f;
             return true;
         }
 
@@ -106,69 +121,45 @@ namespace Woken.Characters
                 return;
 
             mode = MovementMode.FollowPlayer;
-            ResetRoute();
-            StopMovement();
+            StopNavigation();
             TaskFinished?.Invoke(RobotTaskResult.Cancelled);
         }
 
-private void FixedUpdate()
+        private void FixedUpdate()
         {
-            if (body == null)
-                body = GetComponent<Rigidbody2D>();
-
-            if (animator == null)
-                animator = GetComponent<CharacterAnimator>();
-
-            if (body == null || animator == null)
+            if (body == null || animator == null || navigationAgent == null)
             {
                 StopMovement();
                 return;
             }
 
+            if (!TryPlaceAgentOnNavMesh())
+            {
+                StopMovement();
+                if (mode == MovementMode.MoveToTaskTarget)
+                    FinishTask(RobotTaskResult.NoRoute);
+                return;
+            }
+
             if (mode == MovementMode.MoveToTaskTarget)
             {
-                MoveToTaskTarget();
-                return;
-            }
-
-            FollowPlayer();
-        }
-
-        private void MoveToTaskTarget()
-        {
-            if (currentPath == null || currentPath.Count == 0)
-            {
-                FinishTask(RobotTaskResult.NoRoute);
-                return;
-            }
-
-            Vector2 finalPathPoint = currentPath[currentPath.Count - 1];
-            if (Vector2.Distance(body.position, finalPathPoint) <= taskArrivalTolerance)
-            {
-                FinishTask(RobotTaskResult.Completed);
-                return;
-            }
-
-            routeUpdateTimer -= Time.fixedDeltaTime;
-            if (routeUpdateTimer <= 0f)
-            {
-                List<Vector2> newPath = GridRoutePlanner.FindPath(body.position, taskTarget);
-                if (newPath == null || newPath.Count == 0)
-                {
-                    FinishTask(RobotTaskResult.NoRoute);
+                UpdateTask();
+                if (mode != MovementMode.MoveToTaskTarget)
                     return;
-                }
-
-                SetRoute(newPath, taskTarget);
+            }
+            else
+            {
+                UpdateFollow();
             }
 
-            FollowRoute();
+            MoveBodyWithAgent();
         }
 
-        private void FollowPlayer()
+        private void UpdateFollow()
         {
             if (player == null)
             {
+                StopNavigation();
                 StopMovement();
                 return;
             }
@@ -179,99 +170,171 @@ private void FixedUpdate()
             float lowerDistance = followDistance - stopTolerance;
             float upperDistance = followDistance + stopTolerance;
 
-            if (distance > upperDistance)
+            if (distance >= lowerDistance && distance <= upperDistance)
             {
-                UpdateAndFollowRoute(robotPosition, playerPosition);
+                StopNavigation();
+                StopMovement();
                 return;
             }
 
-            if (distance < lowerDistance)
-            {
-                Vector2 awayDirection = robotPosition - playerPosition;
-                if (awayDirection.sqrMagnitude < 0.001f)
-                    awayDirection = Vector2.right;
+            Vector2 awayDirection = robotPosition - playerPosition;
+            if (awayDirection.sqrMagnitude < 0.001f)
+                awayDirection = Vector2.right;
 
-                Vector2 retreatTarget = playerPosition + awayDirection.normalized * followDistance;
-                UpdateAndFollowRoute(robotPosition, retreatTarget);
-                return;
-            }
-
-            StopMovement();
-            ResetRoute();
-        }
-
-        private void UpdateAndFollowRoute(Vector2 robotPosition, Vector2 targetPosition)
-        {
+            Vector2 desiredPosition = playerPosition + awayDirection.normalized * followDistance;
             routeUpdateTimer -= Time.fixedDeltaTime;
 
-            bool targetMoved = Vector2.Distance(targetPosition, lastRouteTarget) >= minimumTargetMovement;
-            if (!hasRoute || routeUpdateTimer <= 0f || targetMoved)
+            bool targetMoved = !hasDestination ||
+                Vector2.Distance(desiredPosition, currentDestination) >= minimumTargetMovement;
+
+            if (targetMoved || routeUpdateTimer <= 0f)
             {
-                List<Vector2> newPath = GridRoutePlanner.FindPath(robotPosition, targetPosition);
-                if (newPath == null || newPath.Count == 0)
+                routeUpdateTimer = routeUpdateInterval;
+                if (!TrySetDestination(desiredPosition))
                 {
-                    currentPath.Clear();
-                    hasRoute = false;
+                    hasDestination = false;
+                    StopNavigation();
                     StopMovement();
                     return;
                 }
+            }
+        }
 
-                SetRoute(newPath, targetPosition);
+        private void UpdateTask()
+        {
+            if (navigationAgent.pathPending)
+                return;
+
+            if (!navigationAgent.hasPath ||
+                navigationAgent.pathStatus != NavMeshPathStatus.PathComplete)
+            {
+                FinishTask(RobotTaskResult.NoRoute);
+                return;
             }
 
-            FollowRoute();
+            float distanceToTarget = Vector2.Distance(
+                body.position,
+                new Vector2(taskTarget.x, taskTarget.y)
+            );
+
+            if (distanceToTarget <= taskArrivalTolerance &&
+                navigationAgent.velocity.sqrMagnitude <= 0.04f)
+            {
+                FinishTask(RobotTaskResult.Completed);
+            }
         }
 
-        private void SetRoute(List<Vector2> path, Vector2 target)
+        private bool TrySetDestination(Vector2 requestedPosition)
         {
-            currentPath = path;
-            currentWaypoint = currentPath.Count > 1 ? 1 : 0;
-            lastRouteTarget = target;
-            routeUpdateTimer = routeUpdateInterval;
-            hasRoute = currentPath.Count > 0;
+            if (!TryPlaceAgentOnNavMesh())
+                return false;
+
+            Vector3 samplePoint = new Vector3(
+                requestedPosition.x,
+                requestedPosition.y,
+                transform.position.z
+            );
+
+            if (!NavMesh.SamplePosition(
+                    samplePoint,
+                    out NavMeshHit hit,
+                    navMeshSampleDistance,
+                    navigationAgent.areaMask))
+            {
+                return false;
+            }
+
+            var path = new NavMeshPath();
+            if (!navigationAgent.CalculatePath(hit.position, path) ||
+                path.status != NavMeshPathStatus.PathComplete ||
+                !navigationAgent.SetPath(path))
+            {
+                return false;
+            }
+
+            navigationAgent.isStopped = false;
+            currentDestination = hit.position;
+            hasDestination = true;
+            return true;
         }
 
-        private void FollowRoute()
+        private bool TryPlaceAgentOnNavMesh()
         {
-            if (body == null || animator == null || !hasRoute || currentPath == null || currentPath.Count == 0)
+            if (navigationAgent == null || !navigationAgent.enabled)
+                return false;
+
+            if (navigationAgent.isOnNavMesh)
+                return true;
+
+            Vector3 position = body != null ? body.position : transform.position;
+            if (!NavMesh.SamplePosition(
+                    position,
+                    out NavMeshHit hit,
+                    navMeshAttachDistance,
+                    navigationAgent.areaMask))
+            {
+                return false;
+            }
+
+            if (body != null)
+                body.position = hit.position;
+
+            transform.position = hit.position;
+            return navigationAgent.Warp(hit.position);
+        }
+
+        private void MoveBodyWithAgent()
+        {
+            if (navigationAgent.isStopped || !hasDestination)
             {
                 StopMovement();
                 return;
             }
 
-            Vector2 currentPosition = body.position;
-            while (currentWaypoint < currentPath.Count - 1 &&
-                   Vector2.Distance(currentPosition, currentPath[currentWaypoint]) <= waypointTolerance)
-            {
-                currentWaypoint++;
-            }
+            Vector3 nextPosition = navigationAgent.nextPosition;
+            Vector2 next2D = new Vector2(nextPosition.x, nextPosition.y);
+            Vector2 movement = next2D - body.position;
 
-            Vector2 direction = currentPath[currentWaypoint] - currentPosition;
-            if (direction.sqrMagnitude <= waypointTolerance * waypointTolerance)
+            if (movement.sqrMagnitude <= 0.0001f)
             {
                 StopMovement();
                 return;
             }
 
-            Vector2 movement = direction.normalized;
-            body.MovePosition(currentPosition + movement * moveSpeed * Time.fixedDeltaTime);
-            animator.SetMotion(movement);
+            body.MovePosition(next2D);
+            animator.SetMotion(movement.normalized);
+        }
+
+        private bool FailToStartTask()
+        {
+            StopNavigation();
+            TaskFinished?.Invoke(RobotTaskResult.NoRoute);
+            return false;
         }
 
         private void FinishTask(RobotTaskResult result)
         {
             mode = MovementMode.FollowPlayer;
-            ResetRoute();
+            StopNavigation();
             StopMovement();
             TaskFinished?.Invoke(result);
         }
 
-        private void ResetRoute()
+        private void StopNavigation()
         {
-            currentPath.Clear();
-            currentWaypoint = 0;
+            if (navigationAgent != null && navigationAgent.enabled && navigationAgent.isOnNavMesh)
+            {
+                navigationAgent.isStopped = true;
+                navigationAgent.ResetPath();
+            }
+
+            hasDestination = false;
             routeUpdateTimer = 0f;
-            hasRoute = false;
+        }
+
+        private void ClearDestination()
+        {
+            StopNavigation();
         }
 
         private void StopMovement()
