@@ -102,6 +102,10 @@ namespace Woken.Gameplay
             robotRepairInteraction.Initialize(player, robot, materialTable,
                 wrenchTarget, pliersTarget, sparePartsTarget,
                 wrenchVisuals, pliersVisuals, sparePartsVisuals, sceneCamera);
+            Transform northLaptop = firstFloorRoot.Find("North bench laptop casing");
+            Transform northLaptopScreen = firstFloorRoot.Find("North bench laptop screen");
+            LaptopArchiveUI laptopArchive = gameObject.AddComponent<LaptopArchiveUI>();
+            laptopArchive.Initialize(player, northLaptop, northLaptopScreen, sceneCamera, worldObjectNameUI);
             gameObject.AddComponent<WorldExplorationFog>();
 
             Transform keypad = firstFloorRoot.Find("Depot keypad housing");
@@ -143,9 +147,10 @@ namespace Woken.Gameplay
                 && Mathf.Abs(player.position.y + 4f) <= 0.5f;
             bool facingElevator = lastPlayerFacing.x > 0.7f
                 && Mathf.Abs(lastPlayerFacing.y) < 0.7f;
+            bool batteryReady = batteryBayInteraction != null && batteryBayInteraction.BatteryInstalled;
             bool canInteract = activeFloor == 1 && !elevatorTransitioning
-                && playerController != null && closeEnough && facingElevator
-                && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay);
+                && playerController != null && closeEnough && facingElevator && batteryReady
+                && !batteryBayInteraction.IsNearBatteryBay;
             UpdateElevatorPrompt(canInteract);
 
             if (activeFloor != 1 || elevatorTransitioning || playerController == null)
@@ -155,8 +160,20 @@ namespace Woken.Gameplay
             if (keyboard == null || !keyboard.fKey.wasPressedThisFrame)
                 return;
 
-            if (closeEnough && facingElevator && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay))
-                StartCoroutine(UseElevator());
+            if (!closeEnough || !facingElevator || batteryBayInteraction != null && batteryBayInteraction.IsNearBatteryBay)
+                return;
+
+            if (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled)
+            {
+                if (worldObjectNameUI != null)
+                    worldObjectNameUI.ShowMessage(
+                        "Batarya yuvası boş, asansör çalışamıyor.",
+                        new Vector3(13.82f, -2.65f, 0f),
+                        2f);
+                return;
+            }
+
+            StartCoroutine(UseElevator());
         }
 
         private void UpdateElevatorPanelProximityMessage()
@@ -294,6 +311,9 @@ namespace Woken.Gameplay
         }
         private IEnumerator UseElevator()
         {
+            if (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled)
+                yield break;
+
             if (elevatorPrompt != null) elevatorPrompt.SetActive(false);
             elevatorTransitioning = true;
             playerController.enabled = false;

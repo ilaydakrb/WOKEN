@@ -35,6 +35,7 @@ namespace Woken.UI
         private bool waitingForRoute;
         private bool waitingForBatteryPickup;
         private bool depotHintShown;
+        private float depotNearSince = -1f;
         private bool batteryHelpDialogueShown;
         private float batteryNearSince = -1f;
         private bool resumeFollowAfterStatus;
@@ -236,7 +237,18 @@ namespace Woken.UI
                 return;
 
             Vector2 keypadPosition = new Vector2(5.58f, 7.62f);
-            if (Vector2.Distance(player.position, keypadPosition) > 1.35f)
+            bool isNearKeypad = Vector2.Distance(player.position, keypadPosition) <= 1.35f;
+            if (!isNearKeypad)
+            {
+                depotNearSince = -1f;
+                return;
+            }
+
+            if (depotNearSince < 0f)
+                depotNearSince = Time.unscaledTime;
+
+            // Let the keypad's 1.3 second F prompt appear before the robot speaks.
+            if (Time.unscaledTime - depotNearSince < 1.4f)
                 return;
 
             depotHintShown = true;
