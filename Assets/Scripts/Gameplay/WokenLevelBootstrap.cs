@@ -1,10 +1,10 @@
 using System.Collections;
-using System.Collections.Generic;
 using NavMeshPlus.Components;
 using NavMeshPlus.Extensions;
 using UnityEngine.AI;
 using UnityEngine;
 using Woken.Characters;
+using Woken.UI;
 
 namespace Woken.Gameplay
 {
@@ -13,19 +13,9 @@ namespace Woken.Gameplay
     /// </summary>
     public sealed class WokenLevelBootstrap : MonoBehaviour
     {
-        private const float MoveSpeed = 3.4f;
-
         private static Sprite pixel;
 
         private Transform player;
-        private string destination = "Depo";
-
-        private List<RouteOption> routes = new List<RouteOption>();
-        private int selectedRoute = -1;
-
-        private readonly List<LineRenderer> routeLines =
-            new List<LineRenderer>();
-
         private Camera sceneCamera;
 
         private void Awake()
@@ -676,6 +666,9 @@ namespace Woken.Gameplay
                 robot.AddComponent<RobotMovementController>();
 
             robotMovement.SetPlayer(player);
+
+            RobotRouteGuideUI routeGuide = gameObject.AddComponent<RobotRouteGuideUI>();
+            routeGuide.Initialize(player, robot.transform, robotMovement, sceneCamera);
         }
 
         private GameObject CreateCharacter(
@@ -802,151 +795,5 @@ namespace Woken.Gameplay
             return pixel;
         }
 
-        private void OnGUI()
-        {
-            GUI.Box(
-                new Rect(12, 12, 270, 110),
-                "WOKEN | Kat 1"
-            );
-
-            GUI.Label(
-                new Rect(24, 42, 245, 22),
-                "Hedef seç; hareket için WASD kullan."
-            );
-
-            if (GUI.Button(
-                new Rect(24, 69, 112, 34),
-                "Depo"))
-            {
-                Choose("Depo", new Vector2(8f, 5.5f));
-            }
-
-            if (GUI.Button(
-                new Rect(148, 69, 112, 34),
-                "Bakım / asansör"))
-            {
-                Choose("Bakım / asansör", new Vector2(8f, -4f));
-            }
-
-            if (routes.Count == 0)
-            {
-                return;
-            }
-
-            GUI.Box(
-                new Rect(12, 130, 270, 56 + routes.Count * 34),
-                destination + " rotaları"
-            );
-
-            for (int i = 0; i < routes.Count; i++)
-            {
-                string buttonText =
-                    (selectedRoute == i ? "✓ " : "") +
-                    "Rota " + (i + 1) +
-                    " — yaklaşık " +
-                    routes[i].EstimatedSeconds +
-                    " sn";
-
-                if (GUI.Button(
-                    new Rect(24, 158 + i * 34, 245, 28),
-                    buttonText))
-                {
-                    SelectRoute(i);
-                }
-            }
-        }
-
-        private void Choose(string name, Vector2 target)
-        {
-            destination = name;
-
-            routes = GridRoutePlanner.FindTwoRoutes(
-                player.position,
-                target,
-                MoveSpeed
-            );
-
-            selectedRoute = -1;
-            ClearRouteLines();
-
-            for (int i = 0; i < routes.Count; i++)
-            {
-                Color color = i == 0
-                    ? new Color32(239, 174, 63, 210)
-                    : new Color32(65, 184, 193, 180);
-
-                float width = i == 0 ? 0.14f : 0.09f;
-
-                DrawRoute(routes[i], color, width);
-            }
-        }
-
-        private void SelectRoute(int index)
-        {
-            if (index < 0 || index >= routes.Count)
-            {
-                return;
-            }
-
-            selectedRoute = index;
-            ClearRouteLines();
-
-            DrawRoute(
-                routes[index],
-                new Color32(255, 194, 76, 235),
-                0.17f
-            );
-        }
-
-        private void DrawRoute(
-            RouteOption route,
-            Color color,
-            float width)
-        {
-            GameObject lineObject =
-                new GameObject("Suggested route");
-
-            LineRenderer line =
-                lineObject.AddComponent<LineRenderer>();
-
-            line.positionCount = route.Points.Count;
-            line.useWorldSpace = true;
-            line.startWidth = width;
-            line.endWidth = width;
-
-            Shader shader = Shader.Find("Sprites/Default");
-
-            if (shader != null)
-            {
-                line.material = new Material(shader);
-            }
-
-            line.startColor = color;
-            line.endColor = color;
-            line.sortingOrder = 3;
-
-            for (int i = 0; i < route.Points.Count; i++)
-            {
-                line.SetPosition(
-                    i,
-                    route.Points[i] + Vector2.up * 0.02f
-                );
-            }
-
-            routeLines.Add(line);
-        }
-
-        private void ClearRouteLines()
-        {
-            for (int i = 0; i < routeLines.Count; i++)
-            {
-                if (routeLines[i] != null)
-                {
-                    Destroy(routeLines[i].gameObject);
-                }
-            }
-
-            routeLines.Clear();
-        }
     }
 }

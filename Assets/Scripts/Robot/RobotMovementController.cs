@@ -18,7 +18,7 @@ namespace Woken.Characters
     {
         [Header("Follow Settings")]
         [SerializeField] private float followDistance = 2f;
-        [SerializeField] private float moveSpeed = 5f;
+        [SerializeField] private float moveSpeed = 4f;
         [SerializeField] private float stopTolerance = 0.1f;
 
         [Header("Task Settings")]
@@ -33,7 +33,8 @@ namespace Woken.Characters
         private enum MovementMode
         {
             FollowPlayer,
-            MoveToTaskTarget
+            MoveToTaskTarget,
+            StayAtDestination
         }
 
         private Rigidbody2D body;
@@ -45,6 +46,7 @@ namespace Woken.Characters
         private Vector3 currentDestination;
         private float routeUpdateTimer;
         private bool hasDestination;
+        private bool resumeFollowingAfterTask = true;
 
         /// <summary>Raised when a move task completes, is cancelled, or has no route.</summary>
         public event Action<RobotTaskResult> TaskFinished;
@@ -100,8 +102,9 @@ namespace Woken.Characters
         /// Sends the robot to a world position using the baked 2D NavMesh.
         /// Returns false and keeps follow mode if no complete route exists.
         /// </summary>
-        public bool StartMoveTask(Vector2 worldTarget)
+        public bool StartMoveTask(Vector2 worldTarget, bool resumeFollowing = true)
         {
+            resumeFollowingAfterTask = resumeFollowing;
             if (body == null || navigationAgent == null || !TryPlaceAgentOnNavMesh())
                 return FailToStartTask();
 
@@ -112,6 +115,15 @@ namespace Woken.Characters
             taskTarget = currentDestination;
             routeUpdateTimer = 0f;
             return true;
+        }
+
+        /// <summary>Resumes following the player after a route arrival pause.</summary>
+        public void ResumeFollowingPlayer()
+        {
+            resumeFollowingAfterTask = true;
+            mode = MovementMode.FollowPlayer;
+            ClearDestination();
+            StopMovement();
         }
 
         /// <summary>Cancels the current task and resumes following the player.</summary>
@@ -145,11 +157,20 @@ namespace Woken.Characters
             {
                 UpdateTask();
                 if (mode != MovementMode.MoveToTaskTarget)
+                {
+                    if (mode == MovementMode.StayAtDestination)
+                        StopMovement();
                     return;
+                }
+            }
+            else if (mode == MovementMode.FollowPlayer)
+            {
+                UpdateFollow();
             }
             else
             {
-                UpdateFollow();
+                StopMovement();
+                return;
             }
 
             MoveBodyWithAgent();
@@ -205,25 +226,26 @@ namespace Woken.Characters
             if (navigationAgent.pathPending)
                 return;
 
-            if (!navigationAgent.hasPath ||
-                navigationAgent.pathStatus != NavMeshPathStatus.PathComplete)
-            {
-                FinishTask(RobotTaskResult.NoRoute);
-                return;
-            }
-
             float distanceToTarget = Vector2.Distance(
                 body.position,
                 new Vector2(taskTarget.x, taskTarget.y)
             );
 
+            // The agent may clear its path as soon as it reaches the destination.
+            // Check arrival before treating an empty path as a routing failure.
             if (distanceToTarget <= taskArrivalTolerance &&
-                navigationAgent.velocity.sqrMagnitude <= 0.04f)
+                (!navigationAgent.hasPath || navigationAgent.velocity.sqrMagnitude <= 0.04f))
             {
                 FinishTask(RobotTaskResult.Completed);
+                return;
+            }
+
+            if (!navigationAgent.hasPath ||
+                navigationAgent.pathStatus != NavMeshPathStatus.PathComplete)
+            {
+                FinishTask(RobotTaskResult.NoRoute);
             }
         }
-
         private bool TrySetDestination(Vector2 requestedPosition)
         {
             if (!TryPlaceAgentOnNavMesh())
@@ -307,6 +329,7 @@ namespace Woken.Characters
 
         private bool FailToStartTask()
         {
+            mode = resumeFollowingAfterTask ? MovementMode.FollowPlayer : MovementMode.StayAtDestination;
             StopNavigation();
             TaskFinished?.Invoke(RobotTaskResult.NoRoute);
             return false;
@@ -314,12 +337,12 @@ namespace Woken.Characters
 
         private void FinishTask(RobotTaskResult result)
         {
-            mode = MovementMode.FollowPlayer;
+            mode = resumeFollowingAfterTask ? MovementMode.FollowPlayer : MovementMode.StayAtDestination;
+            resumeFollowingAfterTask = true;
             StopNavigation();
             StopMovement();
             TaskFinished?.Invoke(result);
         }
-
         private void StopNavigation()
         {
             if (navigationAgent != null && navigationAgent.enabled && navigationAgent.isOnNavMesh)
