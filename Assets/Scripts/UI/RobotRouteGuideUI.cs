@@ -8,38 +8,45 @@ using Woken.Characters;
 
 namespace Woken.UI
 {
-    /// <summary>Opening message and first-floor route choices for the robot guide.</summary>
+    /// <summary>Opening dialogue and automatic elevator guidance for the robot.</summary>
     public sealed class RobotRouteGuideUI : MonoBehaviour
     {
         private const string OpeningMessage = "Sonunda uyandın. Bu terk edilmiş laboratuvardan acilen çıkmamız lazım. Acele et.";
+        private const string DepartureMessage = "Hadi hızlı ol, hemen asansörle çıkmalıyız buradan. Takip et beni.";
         private static Sprite panelSprite;
         private static Sprite circleSprite;
 
         private Transform player;
         private Transform robot;
+        private Transform batterySource;
         private RobotMovementController movement;
         private Camera worldCamera;
         private Canvas canvas;
         private RectTransform canvasRect;
-        private RectTransform questionButton;
+
         private RectTransform introPanel;
-        private RectTransform routePanel;
-        private RectTransform destinationPanel;
+
+
         private RectTransform statusPanel;
         private Text statusText;
+        private Text dialogueText;
         private bool initialized;
-        private bool introDismissed;
+
         private bool waitingForRoute;
-        private bool selectedDepot;
+        private bool waitingForBatteryPickup;
+        private bool depotHintShown;
+        private bool batteryHelpDialogueShown;
+        private float batteryNearSince = -1f;
         private bool resumeFollowAfterStatus;
         private Coroutine statusRoutine;
         private Coroutine introRoutine;
 
-        public void Initialize(Transform playerTransform, Transform robotTransform, RobotMovementController robotMovement, Camera cameraToUse)
+        public void Initialize(Transform playerTransform, Transform robotTransform, RobotMovementController robotMovement, Camera cameraToUse, Transform batterySourceTransform)
         {
             if (initialized) return;
             player = playerTransform;
             robot = robotTransform;
+            batterySource = batterySourceTransform;
             movement = robotMovement;
             worldCamera = cameraToUse != null ? cameraToUse : Camera.main;
             if (player == null || robot == null || movement == null || worldCamera == null)
@@ -50,7 +57,7 @@ namespace Woken.UI
 
             EnsureEventSystem();
             BuildCanvas();
-            BuildQuestionButton();
+
             BuildPopups();
             movement.TaskFinished += OnTaskFinished;
             initialized = true;
@@ -91,114 +98,35 @@ namespace Woken.UI
             scaler.matchWidthOrHeight = .5f;
         }
 
-        private void BuildQuestionButton()
-        {
-            questionButton = MakeRect("Robot route question button", canvas.transform, new Vector2(38f, 38f));
-            var image = questionButton.gameObject.AddComponent<Image>();
-            image.sprite = CircleSprite();
-            image.color = new Color32(220, 65, 62, 255);
-            var button = questionButton.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.transition = Selectable.Transition.None;
-            button.onClick.AddListener(ToggleRouteMenu);
-            Text label = MakeText("Question mark", questionButton, "?", 25, Color.white, TextAnchor.MiddleCenter);
-            label.fontStyle = FontStyle.Bold;
-            Stretch(label.rectTransform, 0f, 0f, 0f, 0f);
-            questionButton.gameObject.SetActive(false);
-        }
-
         private void BuildPopups()
         {
             introPanel = CreatePanel("Robot opening message", new Vector2(760f, 154f));
-            Text introText = MakeText("Opening message text", introPanel, OpeningMessage, 29, Color.black, TextAnchor.MiddleCenter);
-            Stretch(introText.rectTransform, 38f, 22f, 38f, 22f);
-            AddCloseButton(introPanel, DismissOpeningMessage);
+            dialogueText = MakeText("Robot dialogue text", introPanel, OpeningMessage, 29, Color.black, TextAnchor.MiddleCenter);
+            Stretch(dialogueText.rectTransform, 38f, 22f, 38f, 22f);
 
-            routePanel = CreatePanel("Robot route menu", new Vector2(280f, 124f));
-            CreateButton(routePanel, "Route button", "Rota", new Vector2(170f, 54f), new Vector2(0f, -10f), OpenDestinations);
-            AddCloseButton(routePanel, HidePopups);
-            routePanel.gameObject.SetActive(false);
-
-            destinationPanel = CreatePanel("Route destination menu", new Vector2(340f, 188f));
-            CreateButton(destinationPanel, "Depot destination", "Depo", new Vector2(235f, 52f), new Vector2(0f, 25f), () => SelectDestination(true));
-            CreateButton(destinationPanel, "Elevator destination", "Asansör Odası", new Vector2(235f, 52f), new Vector2(0f, -38f), () => SelectDestination(false));
-            AddCloseButton(destinationPanel, HidePopups);
-            destinationPanel.gameObject.SetActive(false);
-
-            statusPanel = CreatePanel("Robot route status", new Vector2(330f, 122f));
+            statusPanel = CreatePanel("Robot route status", new Vector2(420f, 122f));
             statusText = MakeText("Robot status text", statusPanel, string.Empty, 27, Color.black, TextAnchor.MiddleCenter);
             Stretch(statusText.rectTransform, 34f, 20f, 34f, 18f);
-            AddCloseButton(statusPanel, CloseStatusAndResume);
+
             statusPanel.gameObject.SetActive(false);
         }
-
         private IEnumerator ShowOpeningMessage()
         {
             introPanel.gameObject.SetActive(true);
-            yield return new WaitForSeconds(3f);
-            introRoutine = null;
-            DismissOpeningMessage();
-        }
-
-        private void DismissOpeningMessage()
-        {
-            if (introRoutine != null)
-            {
-                StopCoroutine(introRoutine);
-                introRoutine = null;
-            }
+            dialogueText.text = OpeningMessage;
+            yield return new WaitForSeconds(2f);
+            dialogueText.text = DepartureMessage;
+            yield return new WaitForSeconds(2f);
             introPanel.gameObject.SetActive(false);
-            introDismissed = true;
-            questionButton.gameObject.SetActive(true);
+            introRoutine = null;
+            StartElevatorRoute();
         }
 
-        private void ToggleRouteMenu()
+        private void StartElevatorRoute()
         {
-            if (routePanel.gameObject.activeSelf || destinationPanel.gameObject.activeSelf)
-            {
-                HidePopups();
-                return;
-            }
-
-            if (statusPanel.gameObject.activeSelf)
-                CloseStatusAndResume();
-
-            HidePopups();
-            routePanel.gameObject.SetActive(true);
-        }
-        private void OpenDestinations()
-        {
-            routePanel.gameObject.SetActive(false);
-            destinationPanel.gameObject.SetActive(true);
-        }
-
-        private void SelectDestination(bool depot)
-        {
-            HidePopups();
-            Vector2 playerPosition = player.position;
-
-            if (depot && IsInDepot(playerPosition))
-            {
-                ShowStatus("Şu anda depodayız.", true);
-                return;
-            }
-
-            if (!depot && IsInElevatorRoom(playerPosition))
-            {
-                ShowStatus("Şu anda asansör odasındayız.", true);
-                return;
-            }
-
-            selectedDepot = depot;
-            Vector2 destination = depot ? new Vector2(8f, 5.5f) : new Vector2(8f, -4f);
             waitingForRoute = true;
-            if (!movement.StartMoveTask(destination, false))
+            if (!movement.StartMoveTask(new Vector2(12.4f, -4f), false))
                 waitingForRoute = false;
-        }
-
-        private static bool IsInDepot(Vector2 position)
-        {
-            return position.x > 6f && position.x < 14f && position.y > .5f && position.y < 8f;
         }
 
         private static bool IsInElevatorRoom(Vector2 position)
@@ -208,44 +136,49 @@ namespace Woken.UI
 
         private void OnTaskFinished(RobotTaskResult result)
         {
+            if (waitingForBatteryPickup)
+            {
+                waitingForBatteryPickup = false;
+                if (result == RobotTaskResult.Completed || Vector2.Distance(robot.position, batterySource.position) <= 1.1f)
+                {
+                    BatteryBayInteractionUI batteryInteraction = GetComponent<BatteryBayInteractionUI>();
+                    if (batteryInteraction != null)
+                        batteryInteraction.RobotPickedUpBattery();
+                }
+                movement.ResumeFollowingPlayer();
+                return;
+            }
+
             if (!waitingForRoute) return;
             waitingForRoute = false;
-            bool robotReachedRoom = selectedDepot
-                ? IsInDepot(robot.position)
-                : IsInElevatorRoom(robot.position);
-
-            if (result == RobotTaskResult.Completed || robotReachedRoom)
-                ShowStatus(selectedDepot ? "Depoya geldik." : "Asansör odasına geldik.", true);
+            if (result == RobotTaskResult.Completed || IsInElevatorRoom(robot.position))
+                ShowStatus("Asansöre geldik.", true);
             else if (result == RobotTaskResult.NoRoute)
                 ShowStatus("Oraya ulaşamıyorum; yol kapalı görünüyor.", true);
         }
 
-        private void ShowStatus(string message, bool resumeFollowAfterDelay = false)
+        private void ShowStatus(string message, bool resumeFollowAfterDelay = false, float displayDuration = 2f)
         {
             StopStatusRoutine(false);
             resumeFollowAfterStatus = false;
             HidePopups();
+            bool longMessage = message.Length > 70;
+            statusPanel.sizeDelta = longMessage ? new Vector2(760f, 190f) : new Vector2(420f, 122f);
+            statusText.fontSize = longMessage ? 24 : 27;
             statusText.text = message;
             statusPanel.gameObject.SetActive(true);
 
             if (resumeFollowAfterDelay)
             {
                 resumeFollowAfterStatus = true;
-                statusRoutine = StartCoroutine(CloseStatusAfterDelay());
+                statusRoutine = StartCoroutine(CloseStatusAfterDelay(displayDuration));
             }
         }
 
-        private IEnumerator CloseStatusAfterDelay()
+        private IEnumerator CloseStatusAfterDelay(float displayDuration)
         {
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(displayDuration);
             statusRoutine = null;
-            statusPanel.gameObject.SetActive(false);
-            ResumeFollowAfterStatus();
-        }
-
-        private void CloseStatusAndResume()
-        {
-            StopStatusRoutine(false);
             statusPanel.gameObject.SetActive(false);
             ResumeFollowAfterStatus();
         }
@@ -274,45 +207,9 @@ namespace Woken.UI
 
         private void HidePopups()
         {
-            if (routePanel != null) routePanel.gameObject.SetActive(false);
-            if (destinationPanel != null) destinationPanel.gameObject.SetActive(false);
+            if (introPanel != null) introPanel.gameObject.SetActive(false);
             if (statusPanel != null) statusPanel.gameObject.SetActive(false);
         }
-
-        private void CreateButton(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Action onClick)
-        {
-            RectTransform rect = MakeRect(name, parent, size);
-            rect.anchoredPosition = position;
-            var image = rect.gameObject.AddComponent<Image>();
-            image.sprite = PanelSprite();
-            image.type = Image.Type.Sliced;
-            image.color = new Color32(240, 242, 239, 255);
-            var button = rect.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.transition = Selectable.Transition.None;
-            button.onClick.AddListener(() => onClick());
-            Text text = MakeText(name + " label", rect, label, 26, Color.black, TextAnchor.MiddleCenter);
-            Stretch(text.rectTransform, 4f, 2f, 4f, 2f);
-        }
-
-        private void AddCloseButton(RectTransform parent, Action onClose)
-        {
-            RectTransform close = MakeRect("Close popup button", parent, new Vector2(34f, 34f));
-            close.anchorMin = close.anchorMax = Vector2.one;
-            close.pivot = new Vector2(.5f, .5f);
-            close.anchoredPosition = new Vector2(-5f, -5f);
-            var image = close.gameObject.AddComponent<Image>();
-            image.sprite = CircleSprite();
-            image.color = new Color32(220, 65, 62, 255);
-            var button = close.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.transition = Selectable.Transition.None;
-            button.onClick.AddListener(() => onClose());
-            Text text = MakeText("Close X", close, "X", 18, Color.white, TextAnchor.MiddleCenter);
-            text.fontStyle = FontStyle.Bold;
-            Stretch(text.rectTransform, 0f, 0f, 0f, 0f);
-        }
-
         private RectTransform CreatePanel(string name, Vector2 size)
         {
             RectTransform panel = MakeRect(name, canvas.transform, size);
@@ -323,21 +220,85 @@ namespace Woken.UI
             return panel;
         }
 
+        private void Update()
+        {
+            if (!initialized || introRoutine != null || movement == null
+                || movement.IsExecutingTask || player == null)
+                return;
+
+            UpdateDepotHint();
+            UpdateBatteryHelpDialogue();
+        }
+
+        private void UpdateDepotHint()
+        {
+            if (depotHintShown)
+                return;
+
+            Vector2 keypadPosition = new Vector2(5.58f, 7.62f);
+            if (Vector2.Distance(player.position, keypadPosition) > 1.35f)
+                return;
+
+            depotHintShown = true;
+            ShowStatus("Depoya girmek için şifreyi bulmalısın.", true);
+        }
+
+        private void UpdateBatteryHelpDialogue()
+        {
+            if (batteryHelpDialogueShown || batterySource == null)
+                return;
+
+            bool nearBattery = Vector2.Distance(player.position, batterySource.position) <= 1.35f;
+            if (!nearBattery)
+            {
+                batteryNearSince = -1f;
+                return;
+            }
+
+            if (batteryNearSince < 0f)
+                batteryNearSince = Time.unscaledTime;
+            if (Time.unscaledTime - batteryNearSince < 2.3f)
+                return;
+
+            batteryHelpDialogueShown = true;
+            ShowStatus(
+                "Bataryayı taşıyabilmem için enerjim yetmez. Bazı parçalarımı değiştirmen gerekli; ancak sana o zaman yardım edebilirim.",
+                true,
+                5f);
+        }
+        public void ShowRepairCompleteMessage()
+        {
+            batteryHelpDialogueShown = true;
+            StopStatusRoutine(false);
+            ShowStatus("Artık hazırım, taşıyabilirim bataryayı.");
+            StartCoroutine(GoPickUpBatteryAfterDelay());
+        }
+
+        public void ShowBatteryInstallPrompt()
+        {
+            ShowStatus("Bataryayı yerine koyabilirim. T tuşuna bas.", true, 2f);
+        }
+
+        private IEnumerator GoPickUpBatteryAfterDelay()
+        {
+            yield return new WaitForSeconds(1f);
+            if (statusPanel != null)
+                statusPanel.gameObject.SetActive(false);
+
+            if (movement == null || batterySource == null)
+                yield break;
+
+            waitingForBatteryPickup = true;
+            movement.StartMoveTask(batterySource.position, false);
+        }
+
         private void LateUpdate()
         {
             if (!initialized || robot == null || worldCamera == null) return;
             Vector3 screen = worldCamera.WorldToScreenPoint(robot.position + Vector3.up * .58f);
-            bool visible = screen.z > 0f;
-            questionButton.gameObject.SetActive(introDismissed && visible && !movement.IsExecutingTask);
-            if (visible)
-                SetScreenPosition(questionButton, screen + Vector3.up * (12f * canvas.scaleFactor));
-
             if (introPanel.gameObject.activeSelf) PositionPopup(introPanel, screen, 8f);
-            if (routePanel.gameObject.activeSelf) PositionPopup(routePanel, screen);
-            if (destinationPanel.gameObject.activeSelf) PositionPopup(destinationPanel, screen);
             if (statusPanel.gameObject.activeSelf) PositionPopup(statusPanel, screen);
         }
-
         private void PositionPopup(RectTransform popup, Vector3 characterScreen, float gap = 48f)
         {
             Vector3 screen = characterScreen;

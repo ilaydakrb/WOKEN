@@ -4,6 +4,7 @@ using NavMeshPlus.Extensions;
 using UnityEngine.InputSystem;
 using UnityEngine.AI;
 using UnityEngine;
+using UnityEngine.UI;
 using Woken.Characters;
 using Woken.UI;
 
@@ -34,6 +35,16 @@ namespace Woken.Gameplay
         private bool elevatorTransitioning;
         private int activeFloor = 1;
         private Camera sceneCamera;
+        private GameObject elevatorPrompt;
+        private RectTransform elevatorPromptRect;
+        private RectTransform elevatorPromptCanvasRect;
+        private bool wasNearElevator;
+        private float elevatorPromptHideAt;
+        private Transform elevatorServicePanel;
+        private WorldObjectNameUI worldObjectNameUI;
+        private float elevatorPanelNearSince = -1f;
+        private bool elevatorPanelMessageShown;
+        private BatteryBayInteractionUI batteryBayInteraction;
 
         private void Awake()
         {
@@ -69,7 +80,34 @@ namespace Woken.Gameplay
             yield return null;
 
             BuildCharacters();
+            BuildElevatorPrompt();
+            elevatorServicePanel = firstFloorRoot.Find("Elevator service panel");
+            worldObjectNameUI = GetComponent<WorldObjectNameUI>();
+            Transform batterySource = firstFloorRoot.Find("Battery crate");
+            Transform batteryBay = firstFloorRoot.Find("Battery bay backing");
+            Transform batteryStatusLight = firstFloorRoot.Find("Battery bay status light");
+            Transform materialTable = firstFloorRoot.Find("Depot material counter body");
+            Transform wrenchTarget = firstFloorRoot.Find("Wrench click target");
+            Transform pliersTarget = firstFloorRoot.Find("Pliers click target");
+            Transform sparePartsTarget = firstFloorRoot.Find("Spare parts click target");
+            Transform[] wrenchVisuals = { wrenchTarget, firstFloorRoot.Find("Depot wrench handle"), firstFloorRoot.Find("Depot wrench head") };
+            Transform[] pliersVisuals = { pliersTarget, firstFloorRoot.Find("Depot pliers handle"), firstFloorRoot.Find("Depot pliers jaw"), firstFloorRoot.Find("Depot plier grip left"), firstFloorRoot.Find("Depot plier grip right") };
+            Transform[] sparePartsVisuals = { sparePartsTarget, firstFloorRoot.Find("Depot spare parts tray"), firstFloorRoot.Find("Depot spare part one"), firstFloorRoot.Find("Depot spare part two") };
+
+            batteryBayInteraction = gameObject.AddComponent<BatteryBayInteractionUI>();
+            batteryBayInteraction.Initialize(player, robot, batterySource != null ? batterySource.gameObject : null,
+                batteryBay, batteryStatusLight, sceneCamera);
+
+            RobotRepairInteractionUI robotRepairInteraction = gameObject.AddComponent<RobotRepairInteractionUI>();
+            robotRepairInteraction.Initialize(player, robot, materialTable,
+                wrenchTarget, pliersTarget, sparePartsTarget,
+                wrenchVisuals, pliersVisuals, sparePartsVisuals, sceneCamera);
             gameObject.AddComponent<WorldExplorationFog>();
+
+            Transform keypad = firstFloorRoot.Find("Depot keypad housing");
+            Transform door = firstFloorRoot.Find("Depot security door");
+            DepotKeypadUI keypadUI = gameObject.AddComponent<DepotKeypadUI>();
+            keypadUI.Initialize(player, robot, keypad, door);
         }
 
         private void LateUpdate()
@@ -91,28 +129,172 @@ namespace Woken.Gameplay
 
         private void Update()
         {
-            if (activeFloor != 1 || elevatorTransitioning || playerController == null)
+            if (player == null)
                 return;
 
-            Vector2 input = playerController.MoveInput;
+            UpdateElevatorPanelProximityMessage();
+
+            Vector2 input = playerController != null ? playerController.MoveInput : Vector2.zero;
             if (input.sqrMagnitude > 0.05f)
                 lastPlayerFacing = input.normalized;
-
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || !keyboard.fKey.wasPressedThisFrame)
-                return;
 
             bool closeEnough = player.position.x >= 12f
                 && player.position.x <= 13.45f
                 && Mathf.Abs(player.position.y + 4f) <= 0.5f;
             bool facingElevator = lastPlayerFacing.x > 0.7f
                 && Mathf.Abs(lastPlayerFacing.y) < 0.7f;
-            if (closeEnough && facingElevator)
+            bool canInteract = activeFloor == 1 && !elevatorTransitioning
+                && playerController != null && closeEnough && facingElevator
+                && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay);
+            UpdateElevatorPrompt(canInteract);
+
+            if (activeFloor != 1 || elevatorTransitioning || playerController == null)
+                return;
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null || !keyboard.fKey.wasPressedThisFrame)
+                return;
+
+            if (closeEnough && facingElevator && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay))
                 StartCoroutine(UseElevator());
         }
 
+        private void UpdateElevatorPanelProximityMessage()
+        {
+            bool isNearPanel = activeFloor == 1 && !elevatorTransitioning
+                && elevatorServicePanel != null
+                && batteryBayInteraction != null && !batteryBayInteraction.BatteryInstalled
+                && Vector2.Distance(player.position, elevatorServicePanel.position) <= 1.35f;
+            if (!isNearPanel)
+            {
+                elevatorPanelNearSince = -1f;
+                elevatorPanelMessageShown = false;
+                return;
+            }
+
+            if (elevatorPanelNearSince < 0f)
+                elevatorPanelNearSince = Time.unscaledTime;
+            if (elevatorPanelMessageShown || Time.unscaledTime - elevatorPanelNearSince < 1f)
+                return;
+
+            if (worldObjectNameUI != null)
+                worldObjectNameUI.ShowMessage(
+                    "Batarya yuvası boş, asansör çalışamıyor.",
+                    elevatorServicePanel.position + Vector3.up * .7f,
+                    2f);
+            elevatorPanelMessageShown = true;
+        }
+        private void BuildElevatorPrompt()
+        {
+            GameObject canvasObject = new GameObject("Elevator instruction canvas",
+                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 150;
+            elevatorPromptCanvasRect = canvasObject.GetComponent<RectTransform>();
+            elevatorPromptCanvasRect.anchorMin = Vector2.zero;
+            elevatorPromptCanvasRect.anchorMax = Vector2.one;
+            elevatorPromptCanvasRect.offsetMin = Vector2.zero;
+            elevatorPromptCanvasRect.offsetMax = Vector2.zero;
+
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            GameObject bubble = new GameObject("Elevator instruction bubble",
+                typeof(RectTransform), typeof(Image), typeof(Outline));
+            elevatorPromptRect = bubble.GetComponent<RectTransform>();
+            elevatorPromptRect.SetParent(elevatorPromptCanvasRect, false);
+            elevatorPromptRect.sizeDelta = new Vector2(430f, 76f);
+            Image background = bubble.GetComponent<Image>();
+            background.sprite = MakePromptBubbleSprite();
+            background.type = Image.Type.Sliced;
+            background.color = new Color32(245, 245, 242, 250);
+            background.raycastTarget = false;
+            Outline outline = bubble.GetComponent<Outline>();
+            outline.effectColor = new Color32(30, 35, 37, 220);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            GameObject textObject = new GameObject("Elevator instruction text",
+                typeof(RectTransform), typeof(Text));
+            RectTransform textRect = textObject.GetComponent<RectTransform>();
+            textRect.SetParent(elevatorPromptRect, false);
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(8f, 5f);
+            textRect.offsetMax = new Vector2(-8f, -5f);
+            Text label = textObject.GetComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "Asansöre binmek için F’ye tıklayınız.";
+            label.fontSize = 22;
+            label.fontStyle = FontStyle.Bold;
+            label.color = new Color32(20, 20, 20, 255);
+            label.alignment = TextAnchor.MiddleCenter;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            label.raycastTarget = false;
+
+            elevatorPrompt = bubble;
+            elevatorPrompt.SetActive(false);
+        }
+
+        private void UpdateElevatorPrompt(bool canInteract)
+        {
+            if (elevatorPrompt == null)
+                return;
+
+            if (canInteract && !wasNearElevator)
+                elevatorPromptHideAt = Time.unscaledTime + 1.3f;
+            wasNearElevator = canInteract;
+
+            bool shouldShow = canInteract && Time.unscaledTime < elevatorPromptHideAt;
+            elevatorPrompt.SetActive(shouldShow);
+            if (!shouldShow || sceneCamera == null)
+                return;
+
+            Vector3 screenPoint = sceneCamera.WorldToScreenPoint(new Vector3(13.82f, -2.65f, 0f));
+            if (screenPoint.z <= 0f)
+            {
+                elevatorPrompt.SetActive(false);
+                return;
+            }
+
+            Vector2 localPoint;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                elevatorPromptCanvasRect, screenPoint, null, out localPoint))
+                elevatorPromptRect.anchoredPosition = localPoint;
+        }
+
+        private static Sprite MakePromptBubbleSprite()
+        {
+            const int size = 32;
+            const float radius = 7f;
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "Elevator instruction bubble sprite"
+            };
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float nearestX = Mathf.Clamp(x + .5f, radius, size - radius);
+                float nearestY = Mathf.Clamp(y + .5f, radius, size - radius);
+                float dx = x + .5f - nearestX;
+                float dy = y + .5f - nearestY;
+                texture.SetPixel(x, y, dx * dx + dy * dy <= radius * radius ? Color.white : Color.clear);
+            }
+            texture.Apply(false, true);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(.5f, .5f), 100f, 0, SpriteMeshType.FullRect,
+                new Vector4(10f, 10f, 10f, 10f));
+            sprite.name = "Elevator instruction bubble sprite";
+            return sprite;
+        }
         private IEnumerator UseElevator()
         {
+            if (elevatorPrompt != null) elevatorPrompt.SetActive(false);
             elevatorTransitioning = true;
             playerController.enabled = false;
             if (robotController != null)
@@ -423,6 +605,28 @@ namespace Woken.Gameplay
                 wall
             );
 
+            // Security door fills the north opening into the depot.
+            RectPiece("Depot security door", new Vector2(6f, 7.05f),
+                new Vector2(0.32f, 1.5f), new Color32(56, 67, 71, 255), 3, true);
+            RectPiece("Depot security door inset", new Vector2(6f, 7.05f),
+                new Vector2(0.12f, 1.28f), new Color32(82, 94, 97, 255), 4, false);
+            RectPiece("Depot security door indicator", new Vector2(6f, 7.48f),
+                new Vector2(0.08f, 0.08f), new Color32(191, 80, 70, 255), 5, false);
+
+            // Gray keypad housing on the corridor side of the locked door.
+            RectPiece("Depot keypad housing", new Vector2(5.58f, 7.62f),
+                new Vector2(0.28f, 0.48f), new Color32(128, 139, 139, 255), 4, false);
+            RectPiece("Depot keypad screen", new Vector2(5.58f, 7.77f),
+                new Vector2(0.18f, 0.07f), new Color32(52, 73, 75, 255), 5, false);
+            RectPiece("Depot keypad button one", new Vector2(5.53f, 7.65f),
+                new Vector2(0.035f, 0.035f), new Color32(208, 210, 199, 255), 5, false);
+            RectPiece("Depot keypad button two", new Vector2(5.63f, 7.65f),
+                new Vector2(0.035f, 0.035f), new Color32(208, 210, 199, 255), 5, false);
+            RectPiece("Depot keypad button three", new Vector2(5.53f, 7.58f),
+                new Vector2(0.035f, 0.035f), new Color32(208, 210, 199, 255), 5, false);
+            RectPiece("Depot keypad button four", new Vector2(5.63f, 7.58f),
+                new Vector2(0.035f, 0.035f), new Color32(208, 210, 199, 255), 5, false);
+
             Wall(
                 "Wing split west",
                 new Vector2(10f, 0f),
@@ -473,7 +677,7 @@ namespace Woken.Gameplay
                 );
             }
 
-            // Laboratory benches.
+            // Clicking the north bench displays its name above the tabletop.
             Bench(
                 "North laboratory bench",
                 new Vector2(-9.15f, 6.5f),
@@ -481,6 +685,44 @@ namespace Woken.Gameplay
                 steel,
                 top
             );
+            BoxCollider2D northBenchCollider = firstFloorRoot
+                .Find("North laboratory bench body")
+                .GetComponent<BoxCollider2D>();
+            WorldObjectNameUI nameUI = gameObject.AddComponent<WorldObjectNameUI>();
+            nameUI.Initialize(sceneCamera, northBenchCollider,
+                "Kuzey Laboratuvar Tezgâhı", new Vector3(-9.15f, 7.62f, 0f));
+
+            // Small black laptop on the north bench's upper-right corner.
+            RectPiece("North bench laptop casing", new Vector2(-7.15f, 6.78f),
+                new Vector2(0.9f, 0.62f), new Color32(35, 39, 41, 255), 3, false);
+            RectPiece("North bench laptop screen", new Vector2(-7.15f, 6.92f),
+                new Vector2(0.72f, 0.3f), new Color32(13, 17, 19, 255), 4, false);
+            RectPiece("North bench laptop keyboard", new Vector2(-7.15f, 6.61f),
+                new Vector2(0.72f, 0.15f), new Color32(54, 58, 60, 255), 4, false);
+            RectPiece("North bench laptop touchpad", new Vector2(-7.15f, 6.59f),
+                new Vector2(0.18f, 0.045f), new Color32(82, 86, 87, 255), 5, false);
+            BoxCollider2D laptopCollider = firstFloorRoot
+                .Find("North bench laptop casing")
+                .gameObject.AddComponent<BoxCollider2D>();
+            laptopCollider.isTrigger = true;
+            nameUI.Register(laptopCollider, "Laptop", new Vector3(-7.15f, 7.34f, 0f));
+
+            // One book and one file on the north bench, away from its laptop.
+            RectPiece("North bench loose notebook", new Vector2(-9.55f, 6.78f),
+                new Vector2(0.48f, 0.56f), new Color32(72, 82, 91, 255), 3, false);
+            RectPiece("North bench loose notebook spine", new Vector2(-9.73f, 6.78f),
+                new Vector2(0.06f, 0.52f), new Color32(135, 146, 148, 255), 4, false);
+            RotateRoomPiece("North bench loose notebook", -9f);
+            RotateRoomPiece("North bench loose notebook spine", -9f);
+            RectPiece("North bench loose file", new Vector2(-8.48f, 6.34f),
+                new Vector2(0.72f, 0.42f), new Color32(119, 103, 76, 255), 3, false);
+            RectPiece("North bench loose file paper", new Vector2(-8.48f, 6.35f),
+                new Vector2(0.58f, 0.3f), new Color32(215, 212, 198, 255), 4, false);
+            RectPiece("North bench loose file tab", new Vector2(-8.7f, 6.55f),
+                new Vector2(0.18f, 0.08f), new Color32(154, 135, 99, 255), 5, false);
+            RotateRoomPiece("North bench loose file", 7f);
+            RotateRoomPiece("North bench loose file paper", 7f);
+            RotateRoomPiece("North bench loose file tab", 7f);
 
             Bench(
                 "South laboratory bench",
@@ -489,6 +731,58 @@ namespace Woken.Gameplay
                 steel,
                 top
             );
+            BoxCollider2D southBenchCollider = firstFloorRoot
+                .Find("South laboratory bench body")
+                .GetComponent<BoxCollider2D>();
+            nameUI.Register(southBenchCollider, "Güney Laboratuvar Tezgâhı",
+                new Vector3(-9.15f, -5.38f, 0f));
+
+            // A black laptop with visible cracks in its screen on the south bench.
+            RectPiece("South bench broken laptop casing", new Vector2(-10.78f, -6.38f),
+                new Vector2(0.88f, 0.6f), new Color32(31, 35, 37, 255), 3, false);
+            RectPiece("South bench broken laptop screen", new Vector2(-10.78f, -6.48f),
+                new Vector2(0.72f, 0.32f), new Color32(12, 16, 18, 255), 4, false);
+            RectPiece("South bench broken laptop keyboard", new Vector2(-10.78f, -6.19f),
+                new Vector2(0.72f, 0.12f), new Color32(52, 57, 59, 255), 4, false);
+            RectPiece("South bench broken laptop crack main", new Vector2(-10.78f, -6.48f),
+                new Vector2(0.38f, 0.022f), new Color32(139, 151, 151, 255), 5, false);
+            RectPiece("South bench broken laptop crack branch A", new Vector2(-10.85f, -6.48f),
+                new Vector2(0.18f, 0.018f), new Color32(139, 151, 151, 255), 5, false);
+            RectPiece("South bench broken laptop crack branch B", new Vector2(-10.68f, -6.52f),
+                new Vector2(0.16f, 0.018f), new Color32(139, 151, 151, 255), 5, false);
+            BoxCollider2D brokenLaptopCollider = firstFloorRoot
+                .Find("South bench broken laptop casing")
+                .gameObject.AddComponent<BoxCollider2D>();
+            brokenLaptopCollider.isTrigger = true;
+            nameUI.Register(brokenLaptopCollider, "Kırık Laptop", new Vector3(-10.78f, -5.98f, 0f));
+            RotateRoomPiece("South bench broken laptop crack main", -28f);
+            RotateRoomPiece("South bench broken laptop crack branch A", 34f);
+            RotateRoomPiece("South bench broken laptop crack branch B", 45f);
+
+            // Two books and one file scattered across the south bench.
+            RectPiece("South bench blue book", new Vector2(-9.72f, -6.42f),
+                new Vector2(0.46f, 0.56f), new Color32(55, 70, 77, 255), 3, false);
+            RectPiece("South bench blue book spine", new Vector2(-9.88f, -6.42f),
+                new Vector2(0.06f, 0.52f), new Color32(127, 143, 146, 255), 4, false);
+            RotateRoomPiece("South bench blue book", 12f);
+            RotateRoomPiece("South bench blue book spine", 12f);
+
+            RectPiece("South bench red book", new Vector2(-7.18f, -6.43f),
+                new Vector2(0.48f, 0.58f), new Color32(89, 57, 58, 255), 3, false);
+            RectPiece("South bench red book label", new Vector2(-7.18f, -6.31f),
+                new Vector2(0.24f, 0.08f), new Color32(194, 180, 154, 255), 4, false);
+            RotateRoomPiece("South bench red book", -11f);
+            RotateRoomPiece("South bench red book label", -11f);
+
+            RectPiece("South bench loose file", new Vector2(-8.1f, -6.68f),
+                new Vector2(0.72f, 0.4f), new Color32(113, 101, 76, 255), 3, false);
+            RectPiece("South bench loose file papers", new Vector2(-8.1f, -6.68f),
+                new Vector2(0.58f, 0.28f), new Color32(218, 215, 199, 255), 4, false);
+            RectPiece("South bench loose file tab", new Vector2(-8.32f, -6.47f),
+                new Vector2(0.18f, 0.08f), new Color32(155, 137, 103, 255), 5, false);
+            RotateRoomPiece("South bench loose file", -8f);
+            RotateRoomPiece("South bench loose file papers", -8f);
+            RotateRoomPiece("South bench loose file tab", -8f);
 
             Bench(
                 "Central island laboratory bench",
@@ -497,6 +791,63 @@ namespace Woken.Gameplay
                 steel,
                 top
             );
+            BoxCollider2D centerBenchCollider = firstFloorRoot
+                .Find("Central island laboratory bench body")
+                .GetComponent<BoxCollider2D>();
+            nameUI.Register(centerBenchCollider, "Orta Laboratuvar Tezgâhı",
+                new Vector3(-9.4f, 2.05f, 0f));
+
+            // Scattered books, folders, and loose papers on the central worktop.
+            RectPiece("Center bench blue notebook", new Vector2(-10.42f, 0.86f),
+                new Vector2(0.55f, 0.72f), new Color32(48, 64, 72, 255), 3, false);
+            RectPiece("Center bench blue notebook spine", new Vector2(-10.62f, 0.86f),
+                new Vector2(0.07f, 0.68f), new Color32(112, 132, 135, 255), 4, false);
+            RotateRoomPiece("Center bench blue notebook", -13f);
+            RotateRoomPiece("Center bench blue notebook spine", -13f);
+
+            RectPiece("Center bench red notebook", new Vector2(-9.62f, 0.3f),
+                new Vector2(0.58f, 0.76f), new Color32(91, 58, 58, 255), 3, false);
+            RectPiece("Center bench red notebook label", new Vector2(-9.62f, 0.46f),
+                new Vector2(0.28f, 0.1f), new Color32(188, 177, 153, 255), 4, false);
+            RotateRoomPiece("Center bench red notebook", 11f);
+            RotateRoomPiece("Center bench red notebook label", 11f);
+
+            RectPiece("Center bench green notebook", new Vector2(-8.42f, 0.94f),
+                new Vector2(0.52f, 0.68f), new Color32(57, 77, 67, 255), 3, false);
+            RectPiece("Center bench green notebook band", new Vector2(-8.42f, 0.94f),
+                new Vector2(0.07f, 0.68f), new Color32(137, 151, 132, 255), 4, false);
+            RotateRoomPiece("Center bench green notebook", -8f);
+            RotateRoomPiece("Center bench green notebook band", -8f);
+
+            RectPiece("Center bench tan folder", new Vector2(-10.25f, -0.48f),
+                new Vector2(0.82f, 0.55f), new Color32(139, 119, 83, 255), 3, false);
+            RectPiece("Center bench tan folder papers", new Vector2(-10.25f, -0.44f),
+                new Vector2(0.68f, 0.39f), new Color32(210, 207, 190, 255), 4, false);
+            RectPiece("Center bench tan folder tab", new Vector2(-10.48f, -0.16f),
+                new Vector2(0.22f, 0.1f), new Color32(160, 140, 101, 255), 5, false);
+            RotateRoomPiece("Center bench tan folder", 9f);
+            RotateRoomPiece("Center bench tan folder papers", 9f);
+            RotateRoomPiece("Center bench tan folder tab", 9f);
+
+            RectPiece("Center bench gray file", new Vector2(-8.78f, -0.62f),
+                new Vector2(0.86f, 0.58f), new Color32(78, 88, 90, 255), 3, false);
+            RectPiece("Center bench gray file papers", new Vector2(-8.78f, -0.62f),
+                new Vector2(0.7f, 0.42f), new Color32(218, 216, 200, 255), 4, false);
+            RectPiece("Center bench gray file clip", new Vector2(-8.78f, -0.36f),
+                new Vector2(0.2f, 0.07f), new Color32(151, 159, 155, 255), 5, false);
+            RotateRoomPiece("Center bench gray file", -12f);
+            RotateRoomPiece("Center bench gray file papers", -12f);
+            RotateRoomPiece("Center bench gray file clip", -12f);
+
+            RectPiece("Center bench loose paper A", new Vector2(-9.48f, 1.17f),
+                new Vector2(0.4f, 0.52f), new Color32(221, 219, 205, 255), 3, false);
+            RectPiece("Center bench loose paper B", new Vector2(-9.23f, -0.88f),
+                new Vector2(0.42f, 0.5f), new Color32(210, 212, 202, 255), 3, false);
+            RectPiece("Center bench loose paper C", new Vector2(-8.05f, -0.12f),
+                new Vector2(0.38f, 0.48f), new Color32(225, 222, 207, 255), 3, false);
+            RotateRoomPiece("Center bench loose paper A", 16f);
+            RotateRoomPiece("Center bench loose paper B", -18f);
+            RotateRoomPiece("Center bench loose paper C", 12f);
 
             // Laboratory props.
             RectPiece(
@@ -525,6 +876,24 @@ namespace Woken.Gameplay
                 2,
                 false
             );
+
+            // Small chair collision footprints keep the surrounding path open.
+            CreateChair(nameUI, "North bench chair left", new Vector2(-10.7f, 5.28f), 1f);
+            CreateChair(nameUI, "North bench chair center", new Vector2(-9.15f, 5.28f), 1f);
+            CreateChair(nameUI, "North bench chair right", new Vector2(-7.6f, 5.28f), 1f);
+            CreateChair(nameUI, "South bench chair left", new Vector2(-10.1f, -5.42f), -1f);
+            CreateChair(nameUI, "South bench chair right", new Vector2(-8.0f, -5.42f), -1f);
+
+            RegisterBookFileTarget(nameUI, "North bench loose notebook");
+            RegisterBookFileTarget(nameUI, "North bench loose file");
+            RegisterBookFileTarget(nameUI, "Center bench blue notebook");
+            RegisterBookFileTarget(nameUI, "Center bench red notebook");
+            RegisterBookFileTarget(nameUI, "Center bench green notebook");
+            RegisterBookFileTarget(nameUI, "Center bench tan folder");
+            RegisterBookFileTarget(nameUI, "Center bench gray file");
+            RegisterBookFileTarget(nameUI, "South bench blue book");
+            RegisterBookFileTarget(nameUI, "South bench red book");
+            RegisterBookFileTarget(nameUI, "South bench loose file");
         }
 
         private void Bench(
@@ -560,6 +929,116 @@ namespace Woken.Gameplay
                 2,
                 false
             );
+        }
+
+        private void RegisterDepotItemName(
+            WorldObjectNameUI nameUI,
+            string objectName,
+            string displayName,
+            Vector2 center,
+            Vector2 size)
+        {
+            GameObject clickTarget = new GameObject(objectName + " click target");
+            clickTarget.transform.SetParent(firstFloorRoot, true);
+            clickTarget.transform.position = center;
+            clickTarget.transform.localScale = new Vector3(size.x, size.y, 1f);
+            BoxCollider2D clickArea = clickTarget.AddComponent<BoxCollider2D>();
+            clickArea.isTrigger = true;
+            nameUI.Register(clickArea, displayName,
+                new Vector3(center.x, center.y + 0.55f, 0f));
+        }
+
+        private void DepotDecoration(
+            string name,
+            Vector2 center,
+            Vector2 size,
+            Color color,
+            int sorting,
+            float rotation = 0f)
+        {
+            RectPiece(name, center, size, color, sorting, false);
+            Transform piece = firstFloorRoot.Find(name);
+            if (piece == null) return;
+
+            NavMeshModifier modifier = piece.GetComponent<NavMeshModifier>();
+            if (modifier != null)
+                modifier.ignoreFromBuild = true;
+            piece.rotation = Quaternion.Euler(0f, 0f, rotation);
+        }
+
+        private void RegisterRoomObjectName(
+            WorldObjectNameUI nameUI,
+            string objectName,
+            string displayName,
+            Vector3 bubbleOffset)
+        {
+            if (nameUI == null) return;
+            Transform target = firstFloorRoot.Find(objectName);
+            if (target == null) return;
+
+            Collider2D targetCollider = target.GetComponent<Collider2D>();
+            if (targetCollider != null)
+                nameUI.Register(targetCollider, displayName, target.position + bubbleOffset);
+        }
+
+        private void RegisterBookFileTarget(WorldObjectNameUI nameUI, string objectName)
+        {
+            Transform item = firstFloorRoot.Find(objectName);
+            if (item == null)
+            {
+                Debug.LogWarning($"Book or file object '{objectName}' was not found.", this);
+                return;
+            }
+
+            BoxCollider2D clickArea = item.gameObject.AddComponent<BoxCollider2D>();
+            clickArea.isTrigger = true;
+            nameUI.Register(clickArea, "Kitaplar ve Dosyalar", item.position + Vector3.up * 0.55f);
+        }
+
+        private void CreateChair(WorldObjectNameUI nameUI, string chairName, Vector2 seatCenter, float tableDirection)
+        {
+            Color seatColor = new Color32(91, 111, 115, 255);
+            Color backColor = new Color32(47, 60, 64, 255);
+            Color legColor = new Color32(75, 87, 89, 255);
+
+            CreateChairPiece(chairName + " seat", seatCenter,
+                new Vector2(0.62f, 0.44f), seatColor, 2, true);
+            CreateChairPiece(chairName + " backrest",
+                seatCenter - Vector2.up * tableDirection * 0.31f,
+                new Vector2(0.7f, 0.14f), backColor, 3, false);
+            Vector2 frontLegCenter = seatCenter + Vector2.up * tableDirection * 0.14f;
+            CreateChairPiece(chairName + " front leg left",
+                frontLegCenter + Vector2.left * 0.23f,
+                new Vector2(0.08f, 0.12f), legColor, 1, false);
+            CreateChairPiece(chairName + " front leg right",
+                frontLegCenter + Vector2.right * 0.23f,
+                new Vector2(0.08f, 0.12f), legColor, 1, false);
+
+            BoxCollider2D seatCollider = firstFloorRoot.Find(chairName + " seat")
+                .GetComponent<BoxCollider2D>();
+            nameUI.Register(seatCollider, "Sandalye",
+                new Vector3(seatCenter.x, seatCenter.y + 0.7f, 0f));
+        }
+
+        private void CreateChairPiece(
+            string name,
+            Vector2 center,
+            Vector2 size,
+            Color color,
+            int sorting,
+            bool blocksPath)
+        {
+            RectPiece(name, center, size, color, sorting, blocksPath);
+            NavMeshModifier modifier = firstFloorRoot.Find(name).GetComponent<NavMeshModifier>();
+            if (modifier != null)
+                modifier.ignoreFromBuild = !blocksPath;
+        }
+
+        private void RotateRoomPiece(string objectName, float angle)
+        {
+            Transform piece = firstFloorRoot.Find(objectName);
+            if (piece != null)
+                piece.rotation = Quaternion.Euler(0f, 0f, angle);
         }
 
         private void BuildMaze()
@@ -658,17 +1137,92 @@ namespace Woken.Gameplay
             RectPiece("Depot east shelving", new Vector2(13.55f, 4.15f), new Vector2(.55f, 4.8f), shelf, 0, true);
             RectPiece("Depot east shelf lip", new Vector2(13.22f, 4.15f), new Vector2(.1f, 4.8f), shelfEdge, 1, false);
             RectPiece("Depot south shelving", new Vector2(10.65f, .48f), new Vector2(5.1f, .55f), shelf, 0, true);
+            WorldObjectNameUI nameUI = GetComponent<WorldObjectNameUI>();
+            RegisterRoomObjectName(nameUI, "Depot north shelving", "Raf", new Vector3(0f, .4f, 0f));
+            RegisterRoomObjectName(nameUI, "Depot east shelving", "Raf", new Vector3(0f, .4f, 0f));
+            RegisterRoomObjectName(nameUI, "Depot south shelving", "Raf", new Vector3(0f, .4f, 0f));
+            RegisterRoomObjectName(nameUI, "Depot security door", "Kapı", new Vector3(0f, .85f, 0f));
+            Transform keypad = firstFloorRoot.Find("Depot keypad housing");
+            if (keypad != null)
+            {
+                BoxCollider2D keypadCollider = keypad.gameObject.AddComponent<BoxCollider2D>();
+                keypadCollider.isTrigger = true;
+                nameUI.Register(keypadCollider, "Şifre Paneli", keypad.position + Vector3.up * .5f);
+            }
             RectPiece("Depot south shelf lip", new Vector2(10.65f, .81f), new Vector2(5.1f, .1f), shelfEdge, 1, false);
 
             Bench("Depot material counter", new Vector2(12.05f, 6.25f), new Vector2(1.8f, .95f), bench, benchTop);
+            RegisterRoomObjectName(nameUI, "Depot material counter body", "Masa", new Vector3(0f, .75f, 0f));
             Bench("Depot check counter", new Vector2(12.05f, 1.75f), new Vector2(1.8f, .9f), bench, benchTop);
+            RegisterRoomObjectName(nameUI, "Depot check counter body", "Masa", new Vector3(0f, .75f, 0f));
+
+            // Hand tools and spare parts on the upper material counter.
+            DepotDecoration("Depot pliers handle", new Vector2(11.52f, 6.36f),
+                new Vector2(.1f, .34f), new Color32(74, 83, 84, 255), 3);
+            DepotDecoration("Depot pliers jaw", new Vector2(11.52f, 6.53f),
+                new Vector2(.24f, .07f), new Color32(130, 140, 139, 255), 4);
+            DepotDecoration("Depot plier grip left", new Vector2(11.47f, 6.23f),
+                new Vector2(.07f, .16f), new Color32(135, 91, 65, 255), 4);
+            DepotDecoration("Depot plier grip right", new Vector2(11.57f, 6.23f),
+                new Vector2(.07f, .16f), new Color32(135, 91, 65, 255), 4);
+            DepotDecoration("Depot wrench handle", new Vector2(12.02f, 6.36f),
+                new Vector2(.38f, .07f), new Color32(105, 117, 119, 255), 3, -12f);
+            DepotDecoration("Depot wrench head", new Vector2(12.2f, 6.4f),
+                new Vector2(.14f, .12f), new Color32(130, 140, 139, 255), 4, -12f);
+            DepotDecoration("Depot spare parts tray", new Vector2(12.59f, 6.39f),
+                new Vector2(.42f, .25f), new Color32(72, 83, 85, 255), 3);
+            DepotDecoration("Depot spare part one", new Vector2(12.5f, 6.4f),
+                new Vector2(.11f, .08f), new Color32(171, 157, 120, 255), 4);
+            DepotDecoration("Depot spare part two", new Vector2(12.65f, 6.36f),
+                new Vector2(.1f, .07f), new Color32(132, 145, 145, 255), 4);
+
+            // Clipboard, pencil, and flashlight on the lower check counter.
+            DepotDecoration("Depot checklist clipboard", new Vector2(11.62f, 1.91f),
+                new Vector2(.65f, .47f), new Color32(65, 75, 78, 255), 3, -8f);
+            DepotDecoration("Depot checklist paper", new Vector2(11.62f, 1.92f),
+                new Vector2(.53f, .36f), new Color32(222, 220, 205, 255), 4, -8f);
+            DepotDecoration("Depot checklist clip", new Vector2(11.62f, 2.1f),
+                new Vector2(.18f, .055f), new Color32(125, 136, 137, 255), 5, -8f);
+            DepotDecoration("Depot checklist line one", new Vector2(11.62f, 1.99f),
+                new Vector2(.34f, .018f), new Color32(143, 151, 144, 255), 5, -8f);
+            DepotDecoration("Depot checklist line two", new Vector2(11.62f, 1.92f),
+                new Vector2(.34f, .018f), new Color32(143, 151, 144, 255), 5, -8f);
+            DepotDecoration("Depot checklist line three", new Vector2(11.62f, 1.85f),
+                new Vector2(.34f, .018f), new Color32(143, 151, 144, 255), 5, -8f);
+            DepotDecoration("Depot pencil", new Vector2(12.23f, 1.83f),
+                new Vector2(.37f, .045f), new Color32(183, 151, 88, 255), 3, -32f);
+            DepotDecoration("Depot pencil tip", new Vector2(12.39f, 1.73f),
+                new Vector2(.08f, .045f), new Color32(59, 64, 64, 255), 4, -32f);
+            DepotDecoration("Depot flashlight body", new Vector2(12.54f, 2.02f),
+                new Vector2(.32f, .12f), new Color32(49, 58, 60, 255), 3, 18f);
+            DepotDecoration("Depot flashlight lens", new Vector2(12.69f, 2.07f),
+                new Vector2(.09f, .12f), new Color32(195, 182, 128, 255), 4, 18f);
+
+            RegisterDepotItemName(nameUI, "Pliers", "Pense",
+                new Vector2(11.52f, 6.39f), new Vector2(.32f, .44f));
+            RegisterDepotItemName(nameUI, "Wrench", "Anahtar",
+                new Vector2(12.02f, 6.38f), new Vector2(.48f, .17f));
+            RegisterDepotItemName(nameUI, "Spare parts", "Yedek Parçalar",
+                new Vector2(12.59f, 6.39f), new Vector2(.5f, .3f));
+            RegisterDepotItemName(nameUI, "Clipboard", "Kontrol Listesi",
+                new Vector2(11.62f, 1.91f), new Vector2(.72f, .52f));
+            RegisterDepotItemName(nameUI, "Pencil", "Kalem",
+                new Vector2(12.23f, 1.83f), new Vector2(.42f, .16f));
+            RegisterDepotItemName(nameUI, "Flashlight", "El Feneri",
+                new Vector2(12.54f, 2.02f), new Vector2(.4f, .18f));
+
             RectPiece("Depot closed cabinet", new Vector2(7.25f, 1.55f), new Vector2(1.05f, 1.8f), new Color32(91, 108, 111, 255), 0, true);
             RectPiece("Depot cabinet door", new Vector2(7.25f, 1.55f), new Vector2(.78f, 1.5f), new Color32(143, 157, 157, 255), 1, false);
+            RegisterRoomObjectName(nameUI, "Depot closed cabinet", "Dolap", new Vector3(0f, 1.05f, 0f));
 
             CreateBatteryCrate(new Vector2(10.1f, 4.15f), new Vector2(1.25f, .95f));
+            RegisterRoomObjectName(nameUI, "Battery crate", "Batarya", new Vector3(0f, .6f, 0f));
             CreateStorageBox("Depot parts box A", new Vector2(8.45f, 1.35f));
             CreateStorageBox("Depot parts box B", new Vector2(9.25f, 1.35f));
             CreateStorageBox("Depot parts box C", new Vector2(10.05f, 1.35f));
+            RegisterRoomObjectName(nameUI, "Depot parts box A", "Koli", new Vector3(0f, .5f, 0f));
+            RegisterRoomObjectName(nameUI, "Depot parts box B", "Koli", new Vector3(0f, .5f, 0f));
+            RegisterRoomObjectName(nameUI, "Depot parts box C", "Koli", new Vector3(0f, .5f, 0f));
         }
 
         private void BuildMaintenanceRoom()
@@ -692,6 +1246,23 @@ namespace Woken.Gameplay
             RectPiece("Workbench parts tray", new Vector2(7.55f, -7.02f), new Vector2(.42f, .22f), new Color32(132, 148, 149, 255), 2, false);
             RectPiece("Workbench tool", new Vector2(8.35f, -7.02f), new Vector2(.34f, .07f), dark, 2, false);
             RectPiece("Workbench tool grip", new Vector2(8.35f, -7.02f), new Vector2(.08f, .2f), lightSteel, 3, false);
+            // Small laboratory props arranged on the maintenance workbench.
+            RectPiece("Experiment test tube one", new Vector2(6.98f, -6.98f), new Vector2(.09f, .34f), lightSteel, 3, false);
+            RectPiece("Experiment test tube one sample", new Vector2(6.98f, -7.08f), new Vector2(.065f, .11f), new Color32(104, 174, 165, 255), 4, false);
+            RectPiece("Experiment test tube two", new Vector2(7.16f, -6.98f), new Vector2(.09f, .34f), lightSteel, 3, false);
+            RectPiece("Experiment test tube two sample", new Vector2(7.16f, -7.08f), new Vector2(.065f, .11f), new Color32(194, 166, 101, 255), 4, false);
+            RectPiece("Experiment test tube three", new Vector2(7.34f, -6.98f), new Vector2(.09f, .34f), lightSteel, 3, false);
+            RectPiece("Experiment test tube three sample", new Vector2(7.34f, -7.08f), new Vector2(.065f, .11f), new Color32(126, 157, 194, 255), 4, false);
+            RectPiece("Experiment beaker one", new Vector2(8.82f, -6.99f), new Vector2(.28f, .24f), lightSteel, 3, false);
+            RectPiece("Experiment beaker one liquid", new Vector2(8.82f, -7.055f), new Vector2(.2f, .07f), new Color32(105, 178, 163, 255), 4, false);
+            RectPiece("Experiment beaker two", new Vector2(9.13f, -7.02f), new Vector2(.24f, .2f), new Color32(190, 198, 190, 255), 3, false);
+            RectPiece("Experiment beaker two liquid", new Vector2(9.13f, -7.075f), new Vector2(.17f, .055f), new Color32(190, 147, 100, 255), 4, false);
+            RectPiece("Experiment microscope base", new Vector2(8.02f, -7.28f), new Vector2(.4f, .1f), dark, 3, false);
+            RectPiece("Experiment microscope arm", new Vector2(8.02f, -7.15f), new Vector2(.1f, .28f), lightSteel, 4, false);
+            RectPiece("Experiment microscope stage", new Vector2(8.02f, -7.1f), new Vector2(.28f, .07f), steel, 5, false);
+            RectPiece("Experiment microscope eyepiece", new Vector2(8.02f, -6.99f), new Vector2(.08f, .15f), dark, 5, false);
+            RectPiece("Experiment petri dish", new Vector2(8.57f, -7.28f), new Vector2(.22f, .12f), new Color32(174, 190, 185, 255), 3, false);
+            RectPiece("Experiment petri dish sample", new Vector2(8.57f, -7.28f), new Vector2(.1f, .055f), new Color32(177, 126, 125, 255), 4, false);
             RectPiece("Maintenance tool board", new Vector2(7.35f, -1.05f), new Vector2(1.25f, .6f), steel, 0, true);
             RectPiece("Tool board wrench", new Vector2(7.12f, -1.05f), new Vector2(.08f, .38f), lightSteel, 2, false);
             RectPiece("Tool board driver", new Vector2(7.48f, -1.05f), new Vector2(.08f, .42f), new Color32(132, 148, 149, 255), 2, false);
@@ -735,6 +1306,45 @@ namespace Woken.Gameplay
             RectPiece("Service panel indicator left", new Vector2(12.51f, -1.92f), new Vector2(.07f, .07f), new Color32(100, 185, 150, 255), 3, false);
             RectPiece("Service panel indicator right", new Vector2(12.91f, -1.92f), new Vector2(.07f, .07f), new Color32(205, 174, 100, 255), 3, false);
             RectPiece("Elevator threshold", new Vector2(13.52f, -4f), new Vector2(.1f, 1.9f), lightSteel, 2, false);
+
+            WorldObjectNameUI nameUI = GetComponent<WorldObjectNameUI>();
+            RegisterRoomObjectName(nameUI, "Maintenance workbench body", "Deney Masası", new Vector3(0f, .9f, 0f));
+            RegisterRoomObjectName(nameUI, "Maintenance tool board", "Deney Malzemeleri Dolabı", new Vector3(0f, .65f, 0f));
+            for (int i = 0; i < firstFloorRoot.childCount; i++)
+            {
+                Transform drawer = firstFloorRoot.GetChild(i);
+                if (drawer.name != "Workbench drawer face") continue;
+
+                BoxCollider2D drawerClickArea = drawer.gameObject.AddComponent<BoxCollider2D>();
+                drawerClickArea.size = new Vector2(.7f, .28f);
+                drawerClickArea.isTrigger = true;
+                nameUI.Register(drawerClickArea, "Çekmece", drawer.position + Vector3.up * .45f);
+            }
+            Transform elevatorFaceplate = firstFloorRoot.Find("Elevator wall mounted faceplate");
+            if (nameUI != null && elevatorFaceplate != null)
+            {
+                BoxCollider2D elevatorClickArea = elevatorFaceplate.gameObject.AddComponent<BoxCollider2D>();
+                elevatorClickArea.size = new Vector2(.8f, 2.2f);
+                elevatorClickArea.isTrigger = true;
+                nameUI.Register(elevatorClickArea, "Asansör", elevatorFaceplate.position + Vector3.up * 1.25f);
+                Transform servicePanel = firstFloorRoot.Find("Elevator service panel");
+                if (servicePanel != null)
+                {
+                    BoxCollider2D panelClickArea = servicePanel.gameObject.AddComponent<BoxCollider2D>();
+                    panelClickArea.size = new Vector2(1f, 1.1f);
+                    panelClickArea.isTrigger = true;
+                    nameUI.Register(panelClickArea, "Asansör Paneli", servicePanel.position + Vector3.up * .7f);
+                }
+
+                Transform batteryBay = firstFloorRoot.Find("Battery bay backing");
+                if (batteryBay != null)
+                {
+                    BoxCollider2D batteryClickArea = batteryBay.gameObject.AddComponent<BoxCollider2D>();
+                    batteryClickArea.size = new Vector2(1.5f, 1.5f);
+                    batteryClickArea.isTrigger = true;
+                    nameUI.Register(batteryClickArea, "Batarya Yuvası", batteryBay.position + Vector3.up * .9f);
+                }
+            }
 
             BuildElevatorCabin(firstFloorRoot, "Elevator cabin");
             firstFloorNorthDoor = firstFloorRoot.Find("Elevator door leaf north");
@@ -848,7 +1458,7 @@ namespace Woken.Gameplay
             robotController.SetPlayer(player);
 
             RobotRouteGuideUI routeGuide = gameObject.AddComponent<RobotRouteGuideUI>();
-            routeGuide.Initialize(player, robot, robotController, sceneCamera);
+            routeGuide.Initialize(player, robot, robotController, sceneCamera, firstFloorRoot.Find("Battery crate"));
 
             playerBody = player.GetComponent<Rigidbody2D>();
             playerController = player.GetComponent<PlayerWASDController>();
