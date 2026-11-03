@@ -77,7 +77,7 @@ namespace Woken.Characters
                 navigationAgent.speed = moveSpeed;
                 navigationAgent.acceleration = moveSpeed * 8f;
                 navigationAgent.angularSpeed = 0f;
-                navigationAgent.radius = 0.27f;
+                navigationAgent.radius = 0.21f;
                 navigationAgent.height = 1f;
                 navigationAgent.stoppingDistance = 0.05f;
                 int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");

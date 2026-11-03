@@ -701,6 +701,86 @@ namespace Woken.Gameplay
                 new Vector2(.48f, .62f), new Color32(91, 105, 105, 255), 1, true, root);
             RectPiece("Floor 2 room 1 lower waste bin rim", new Vector2(-7.45f, -6.55f),
                 new Vector2(.5f, .1f), new Color32(126, 140, 138, 255), 2, false, root);
+            // Room 3: service-access room with a small robot-only passage to the release panel.
+            Color serviceWall = new Color32(50, 63, 67, 255);
+            Color serviceTrim = new Color32(120, 139, 140, 255);
+            Color serviceScreen = new Color32(91, 180, 177, 255);
+
+            // Short, connected service bay. The 0.5-unit opening admits the smaller robot,
+            // while the player's 0.54-unit collider cannot pass. Its far end is anchored to the room wall.
+            RectPiece("Floor 2 room 3 service bay west upper", new Vector2(2.3f, -1.165f),
+                new Vector2(.36f, 1.97f), serviceWall, 1, true, root);
+            RectPiece("Floor 2 room 3 service bay west lower", new Vector2(2.3f, -3.225f),
+                new Vector2(.36f, 1.15f), serviceWall, 1, true, root);
+            RectPiece("Floor 2 room 3 service bay end wall", new Vector2(3.65f, -3.8f),
+                new Vector2(2.7f, .36f), serviceWall, 1, true, root);
+
+            // Accessible release panel inside the robot-only bay.
+            RectPiece("Floor 2 room 3 release panel housing", new Vector2(4.35f, -1.55f),
+                new Vector2(.2f, 1.25f), serviceWall, 1, true, root);
+            RectPiece("Floor 2 room 3 release panel face", new Vector2(4.22f, -1.55f),
+                new Vector2(.08f, .84f), serviceTrim, 2, false, root);
+            RectPiece("Floor 2 room 3 release panel screen", new Vector2(4.16f, -1.4f),
+                new Vector2(.035f, .26f), serviceScreen, 3, false, root);
+            RectPiece("Floor 2 room 3 release panel button", new Vector2(4.16f, -1.8f),
+                new Vector2(.07f, .07f), new Color32(212, 178, 92, 255), 3, false, root);
+            RectPiece("Floor 2 room 3 service cable conduit", new Vector2(4.7f, -2.55f),
+                new Vector2(.12f, 1.65f), serviceWall, 0, true, root);
+
+            // Visible open sliding doorway from room 3 into room 2; the route remains clear.
+            RectPiece("Floor 2 room 3 to room 2 door jamb west", new Vector2(-.72f, 0f),
+                new Vector2(.14f, .54f), serviceTrim, 2, false, root);
+            RectPiece("Floor 2 room 3 to room 2 door jamb east", new Vector2(.72f, 0f),
+                new Vector2(.14f, .54f), serviceTrim, 2, false, root);
+            RectPiece("Floor 2 room 3 to room 2 open door leaf west", new Vector2(-.98f, .08f),
+                new Vector2(.38f, .14f), serviceWall, 2, false, root);
+            RectPiece("Floor 2 room 3 to room 2 open door leaf east", new Vector2(.98f, .08f),
+                new Vector2(.38f, .14f), serviceWall, 2, false, root);
+            // Remaining room 3 details: compact utilities along the south and west edges.
+            Color room3Cabinet = new Color32(79, 94, 98, 255);
+            Color room3Top = new Color32(154, 165, 159, 255);
+            Color room3Panel = new Color32(91, 112, 115, 255);
+            Color room3Accent = new Color32(205, 177, 92, 255);
+
+            // Low maintenance bench and a few tools in the southwest corner.
+            RectPiece("Floor 2 room 3 maintenance bench body", new Vector2(-4.45f, -7.12f),
+                new Vector2(2.55f, .82f), room3Cabinet, 0, true, root);
+            RectPiece("Floor 2 room 3 maintenance bench top", new Vector2(-4.45f, -6.8f),
+                new Vector2(2.62f, .58f), room3Top, 1, false, root);
+            RectPiece("Floor 2 room 3 bench drawer left", new Vector2(-5.05f, -7.18f),
+                new Vector2(.78f, .2f), new Color32(108, 124, 125, 255), 2, false, root);
+            RectPiece("Floor 2 room 3 bench drawer right", new Vector2(-3.96f, -7.18f),
+                new Vector2(.78f, .2f), new Color32(108, 124, 125, 255), 2, false, root);
+            RectPiece("Floor 2 room 3 bench tool tray", new Vector2(-4.85f, -6.56f),
+                new Vector2(.48f, .16f), room3Panel, 2, false, root);
+            RectPiece("Floor 2 room 3 bench wrench", new Vector2(-3.95f, -6.58f),
+                new Vector2(.38f, .07f), room3Accent, 3, false, root);
+
+            // Small closed parts cabinet on the lower east wall, clear of the service bay.
+            RectPiece("Floor 2 room 3 parts cabinet", new Vector2(4.25f, -6.35f),
+                new Vector2(.95f, 1.55f), room3Cabinet, 0, true, root);
+            RectPiece("Floor 2 room 3 parts cabinet front", new Vector2(4.25f, -6.35f),
+                new Vector2(.72f, 1.24f), new Color32(126, 140, 139, 255), 1, false, root);
+            RectPiece("Floor 2 room 3 parts cabinet handle", new Vector2(4.02f, -6.35f),
+                new Vector2(.06f, .32f), room3Accent, 2, false, root);
+
+            // Wall-mounted status board in the west upper section; keep the room 2 doorway clear.
+            RectPiece("Floor 2 room 3 status board frame", new Vector2(-5.55f, -.9f),
+                new Vector2(1.1f, .16f), room3Cabinet, 1, false, root);
+            RectPiece("Floor 2 room 3 status board screen", new Vector2(-5.55f, -.88f),
+                new Vector2(.78f, .07f), new Color32(87, 151, 155, 255), 2, false, root);
+            RectPiece("Floor 2 room 3 status light green", new Vector2(-5.95f, -1.15f),
+                new Vector2(.1f, .1f), new Color32(108, 184, 139, 255), 2, false, root);
+            RectPiece("Floor 2 room 3 status light amber", new Vector2(-5.68f, -1.15f),
+                new Vector2(.1f, .1f), room3Accent, 2, false, root);
+
+            // Caution marks make the robot-only service opening easy to notice without adding another route.
+            RectPiece("Floor 2 room 3 service slot floor mark west", new Vector2(1.85f, -2.4f),
+                new Vector2(.42f, .08f), room3Accent, 0, false, root);
+            RectPiece("Floor 2 room 3 service slot floor mark east", new Vector2(2.75f, -2.4f),
+                new Vector2(.42f, .08f), room3Accent, 0, false, root);
+            RectPiece("Floor 2 room 3 service slot indicator", new Vector2(2.62f, -1.65f),
+                new Vector2(.08f, .16f), new Color32(102, 188, 172, 255), 2, false, root);
             // Room 5: quiet LLM control room. Keep its entry from room 4 and the east exit approachable.
             Color llmDark = new Color32(42, 55, 60, 255);
             Color llmSteel = new Color32(91, 108, 111, 255);
@@ -1743,6 +1823,7 @@ namespace Woken.Gameplay
         {
             GameObject actor = new GameObject(objectName);
             actor.transform.position = position;
+            actor.transform.localScale = robot ? Vector3.one * 0.9f : Vector3.one;
 
             SpriteRenderer renderer =
                 actor.AddComponent<SpriteRenderer>();
@@ -1775,7 +1856,7 @@ namespace Woken.Gameplay
             CircleCollider2D collider =
                 actor.AddComponent<CircleCollider2D>();
 
-            collider.radius = 0.27f;
+            collider.radius = robot ? 0.24f : 0.27f;
 
             if (!robot)
             {
@@ -1871,6 +1952,9 @@ namespace Woken.Gameplay
 
     }
 }
+
+
+
 
 
 
