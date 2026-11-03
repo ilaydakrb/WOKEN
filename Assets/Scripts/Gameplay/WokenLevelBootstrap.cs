@@ -546,8 +546,81 @@ namespace Woken.Gameplay
             // Room 4 -> room 5: opening in their shared horizontal wall.
             RectPiece("Floor 2 east divider left", new Vector2(6.9f, 0f),
                 new Vector2(3.8f, .36f), wall, 1, true, root);
-            RectPiece("Floor 2 east divider right", new Vector2(12.1f, 0f),
-                new Vector2(3.8f, .36f), wall, 1, true, root);
+            RectPiece("Floor 2 east divider right before window", new Vector2(10.75f, 0f),
+                new Vector2(1.1f, .36f), wall, 1, true, root);
+            RectPiece("Floor 2 room 4 to 5 observation window frame", new Vector2(12.1f, 0f),
+                new Vector2(1.6f, .36f), new Color32(49, 71, 77, 255), 2, true, root);
+            RectPiece("Floor 2 room 4 to 5 observation glass", new Vector2(12.1f, 0f),
+                new Vector2(1.34f, .13f), new Color32(110, 161, 174, 220), 3, true, root);
+            RectPiece("Floor 2 observation glass reflection", new Vector2(12.1f, .025f),
+                new Vector2(1.1f, .035f), new Color32(196, 219, 219, 255), 4, false, root);
+            RectPiece("Floor 2 east divider right after window", new Vector2(13.45f, 0f),
+                new Vector2(1.1f, .36f), wall, 1, true, root);
+            // Room 4: materials storage. Leave the 2-to-4 and 4-to-5 openings clear,
+            // and keep the observation glass visible from both rooms.
+            Color storageSteel = new Color32(74, 88, 91, 255);
+            Color shelfEdge = new Color32(135, 148, 145, 255);
+            Color carton = new Color32(157, 126, 91, 255);
+            Color cartonLight = new Color32(190, 159, 117, 255);
+            Color crate = new Color32(104, 116, 111, 255);
+
+            // North storage rack with visible shelves and a few supplies.
+            RectPiece("Floor 2 room 4 north shelving frame", new Vector2(7.65f, 7.12f),
+                new Vector2(4.1f, .72f), storageSteel, 0, true, root);
+            RectPiece("Floor 2 room 4 north shelf upper", new Vector2(7.65f, 6.94f),
+                new Vector2(4.15f, .09f), shelfEdge, 1, false, root);
+            RectPiece("Floor 2 room 4 north shelf lower", new Vector2(7.65f, 7.32f),
+                new Vector2(4.15f, .09f), shelfEdge, 1, false, root);
+            RectPiece("Floor 2 room 4 rack carton A", new Vector2(6.45f, 6.78f),
+                new Vector2(.72f, .42f), carton, 2, true, root);
+            RectPiece("Floor 2 room 4 rack carton A seam", new Vector2(6.45f, 6.78f),
+                new Vector2(.06f, .42f), cartonLight, 3, false, root);
+            RectPiece("Floor 2 room 4 rack crate", new Vector2(8.05f, 6.76f),
+                new Vector2(.82f, .48f), crate, 2, true, root);
+            RectPiece("Floor 2 room 4 rack small supply bin", new Vector2(9.1f, 6.78f),
+                new Vector2(.5f, .38f), new Color32(115, 130, 130, 255), 2, true, root);
+
+            // Packing table, kept west of the direct route to the glass and doorway.
+            RectPiece("Floor 2 room 4 packing table body", new Vector2(7.25f, 1.2f),
+                new Vector2(2.5f, 1.12f), storageSteel, 0, true, root);
+            RectPiece("Floor 2 room 4 packing table top", new Vector2(7.25f, 1.53f),
+                new Vector2(2.58f, .62f), new Color32(180, 184, 176, 255), 1, false, root);
+            RectPiece("Floor 2 room 4 packing tape dispenser", new Vector2(6.55f, 1.51f),
+                new Vector2(.42f, .25f), new Color32(58, 67, 69, 255), 2, false, root);
+            RectPiece("Floor 2 room 4 packing tape roll", new Vector2(6.55f, 1.64f),
+                new Vector2(.22f, .12f), new Color32(189, 174, 125, 255), 3, false, root);
+            RectPiece("Floor 2 room 4 packing paper", new Vector2(7.55f, 1.59f),
+                new Vector2(.48f, .29f), new Color32(221, 218, 203, 255), 2, false, root);
+            RectPiece("Floor 2 room 4 table scissors", new Vector2(8.15f, 1.55f),
+                new Vector2(.34f, .08f), new Color32(70, 80, 80, 255), 3, false, root);
+
+            // Parked hand cart and two crates.
+            RectPiece("Floor 2 room 4 hand cart platform", new Vector2(11.35f, 4.55f),
+                new Vector2(1.3f, .52f), new Color32(82, 96, 98, 255), 1, true, root);
+            RectPiece("Floor 2 room 4 hand cart handle", new Vector2(11.82f, 5.06f),
+                new Vector2(.12f, .62f), shelfEdge, 2, true, root);
+            RectPiece("Floor 2 room 4 hand cart grip", new Vector2(11.82f, 5.38f),
+                new Vector2(.34f, .1f), new Color32(60, 70, 71, 255), 3, false, root);
+            RectPiece("Floor 2 room 4 cart crate", new Vector2(11.32f, 4.91f),
+                new Vector2(.72f, .54f), crate, 2, true, root);
+            RectPiece("Floor 2 room 4 corner carton", new Vector2(12.0f, 7.0f),
+                new Vector2(1.15f, .92f), carton, 1, true, root);
+            RectPiece("Floor 2 room 4 corner carton lid", new Vector2(12.0f, 7.0f),
+                new Vector2(1.04f, .1f), cartonLight, 2, false, root);
+            RectPiece("Floor 2 room 4 corner crate", new Vector2(13.25f, 7.0f),
+                new Vector2(.92f, .76f), crate, 1, true, root);
+
+            // PPE wall board and recycling bins, away from the shared-wall window.
+            RectPiece("Floor 2 room 4 PPE board", new Vector2(12.95f, 2.9f),
+                new Vector2(1.45f, .18f), storageSteel, 1, true, root);
+            RectPiece("Floor 2 room 4 PPE helmet", new Vector2(12.55f, 2.57f),
+                new Vector2(.42f, .32f), cartonLight, 2, false, root);
+            RectPiece("Floor 2 room 4 PPE gloves", new Vector2(13.25f, 2.56f),
+                new Vector2(.42f, .25f), new Color32(126, 145, 130, 255), 2, false, root);
+            RectPiece("Floor 2 room 4 recycling bin cardboard", new Vector2(6.35f, 2.75f),
+                new Vector2(.72f, .92f), new Color32(132, 113, 88, 255), 1, true, root);
+            RectPiece("Floor 2 room 4 recycling bin packaging", new Vector2(7.2f, 2.75f),
+                new Vector2(.72f, .92f), new Color32(94, 119, 119, 255), 1, true, root);
             // Room 5 contains the final exit; the exit itself remains closed for now.
             RectPiece("Floor 2 exit door", new Vector2(14f, -4.25f),
                 new Vector2(.4f, 2.5f), wallFace, 2, true, root);
@@ -1742,6 +1815,8 @@ namespace Woken.Gameplay
 
     }
 }
+
+
 
 
 
