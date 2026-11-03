@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using UnityEngine.AI;
 using Woken.Characters;
 
 namespace Woken.UI
@@ -19,7 +21,24 @@ namespace Woken.UI
         private Transform player;
         private Transform robot;
         private Transform batterySource;
+        private Transform secondFloorEntryStep;
+        private Transform secondFloorStepDestinationCabinet;
+        private Transform room3PowerButton;
+        private Transform robotOnlyPassageTrigger;
+        private Transform room3DoorWest;
+        private Transform room3DoorEast;
         private RobotMovementController movement;
+        private Rigidbody2D robotBody;
+        private CharacterAnimator robotAnimator;
+        private Collider2D robotCollider;
+        private NavMeshAgent robotAgent;
+        private Vector3 robotOriginalScale;
+        private PlayerWASDController playerController;
+        private Rigidbody2D playerBody;
+        private CharacterAnimator playerAnimator;
+        private Collider2D playerCollider;
+        private Vector3 playerOriginalScale;
+        private Action refreshNavigation;
         private Camera worldCamera;
         private Canvas canvas;
         private RectTransform canvasRect;
@@ -41,14 +60,42 @@ namespace Woken.UI
         private bool resumeFollowAfterStatus;
         private Coroutine statusRoutine;
         private Coroutine introRoutine;
+        private Coroutine secondFloorCabinetHelpRoutine;
+        private bool secondFloorCabinetHelpShown;
+        private bool robotTaskSucceeded;
+        private bool room3DoorHintShown;
+        private bool room3DoorAttemptPromptShown;
+        private bool room3DoorOpened;
+        private Coroutine room3DoorRoutine;
 
-        public void Initialize(Transform playerTransform, Transform robotTransform, RobotMovementController robotMovement, Camera cameraToUse, Transform batterySourceTransform)
+        public void Initialize(Transform playerTransform, Transform robotTransform, RobotMovementController robotMovement,
+            Camera cameraToUse, Transform batterySourceTransform, Transform stepTransform = null,
+            Transform destinationCabinetTransform = null, Transform powerButtonTransform = null,
+            Transform passageTriggerTransform = null, Transform doorWestTransform = null,
+            Transform doorEastTransform = null, Action navigationRefresh = null)
         {
             if (initialized) return;
             player = playerTransform;
             robot = robotTransform;
             batterySource = batterySourceTransform;
+            secondFloorEntryStep = stepTransform;
+            secondFloorStepDestinationCabinet = destinationCabinetTransform;
+            room3PowerButton = powerButtonTransform;
+            robotOnlyPassageTrigger = passageTriggerTransform;
+            room3DoorWest = doorWestTransform;
+            room3DoorEast = doorEastTransform;
+            refreshNavigation = navigationRefresh;
             movement = robotMovement;
+            robotBody = robotTransform.GetComponent<Rigidbody2D>();
+            robotAnimator = robotTransform.GetComponent<CharacterAnimator>();
+            robotCollider = robotTransform.GetComponent<Collider2D>();
+            robotAgent = robotTransform.GetComponent<NavMeshAgent>();
+            robotOriginalScale = robotTransform.localScale;
+            playerController = playerTransform.GetComponent<PlayerWASDController>();
+            playerBody = playerTransform.GetComponent<Rigidbody2D>();
+            playerAnimator = playerTransform.GetComponent<CharacterAnimator>();
+            playerCollider = playerTransform.GetComponent<Collider2D>();
+            playerOriginalScale = playerTransform.localScale;
             worldCamera = cameraToUse != null ? cameraToUse : Camera.main;
             if (player == null || robot == null || movement == null || worldCamera == null)
             {
@@ -162,6 +209,8 @@ namespace Woken.UI
         {
             StopStatusRoutine(false);
             resumeFollowAfterStatus = false;
+            if (canvas != null && !canvas.gameObject.activeSelf)
+                canvas.gameObject.SetActive(true);
             HidePopups();
             bool longMessage = message.Length > 70;
             statusPanel.sizeDelta = longMessage ? new Vector2(760f, 190f) : new Vector2(420f, 122f);
@@ -229,6 +278,8 @@ namespace Woken.UI
 
             UpdateDepotHint();
             UpdateBatteryHelpDialogue();
+            UpdateSecondFloorDoorPuzzle();
+            UpdateSecondFloorCabinetHelp();
         }
 
         private void UpdateDepotHint()
@@ -278,6 +329,353 @@ namespace Woken.UI
                 true,
                 5f);
         }
+        private void UpdateSecondFloorCabinetHelp()
+        {
+            if (secondFloorCabinetHelpShown || secondFloorCabinetHelpRoutine != null
+                || secondFloorEntryStep == null || secondFloorStepDestinationCabinet == null)
+                return;
+
+            Collider2D cabinetCollider = secondFloorStepDestinationCabinet.GetComponent<Collider2D>();
+            float cabinetLeft = cabinetCollider != null
+                ? cabinetCollider.bounds.min.x
+                : secondFloorStepDestinationCabinet.position.x - .64f;
+            Vector2 cabinetFront = new Vector2(cabinetLeft - 1.45f, secondFloorStepDestinationCabinet.position.y);
+            bool playerIsInFront = player.position.x < cabinetLeft
+                && Vector2.Distance(player.position, cabinetFront) <= .65f;
+            if (!playerIsInFront)
+                return;
+
+            secondFloorCabinetHelpShown = true;
+            movement.HoldPosition();
+            if (playerController != null) playerController.enabled = false;
+            if (playerBody != null) playerBody.linearVelocity = Vector2.zero;
+            if (playerAnimator != null) playerAnimator.SetMotion(Vector2.zero);
+            secondFloorCabinetHelpRoutine = StartCoroutine(MoveEntryStepToCabinet());
+        }
+
+        private void UpdateSecondFloorDoorPuzzle()
+        {
+            if (room3DoorOpened || room3DoorRoutine != null || room3DoorWest == null
+                || room3DoorEast == null || room3PowerButton == null || robotOnlyPassageTrigger == null)
+                return;
+
+            Vector2 doorCenter = ((Vector2)room3DoorWest.position + (Vector2)room3DoorEast.position) * .5f;
+            Vector2 doorFront = doorCenter + Vector2.down * .9f;
+            if (!room3DoorHintShown && player.position.y < doorCenter.y
+                && Vector2.Distance(player.position, doorFront) <= 1.2f)
+            {
+                room3DoorHintShown = true;
+                ShowStatus("Yandaki güç düğmesi bu kapıyı açıyor olmalı.");
+            }
+
+            if (!room3DoorHintShown)
+                return;
+
+            bool nearYellowMarks = Vector2.Distance(player.position, robotOnlyPassageTrigger.position) <= 1.05f
+                && player.position.x < robotOnlyPassageTrigger.position.x + .2f;
+            if (!nearYellowMarks)
+            {
+                if (room3DoorAttemptPromptShown)
+                {
+                    room3DoorAttemptPromptShown = false;
+                    HidePopups();
+                }
+                return;
+            }
+
+            if (!room3DoorAttemptPromptShown)
+            {
+                room3DoorAttemptPromptShown = true;
+                ShowStatus("F ile sarı çizgili geçişi dene.");
+            }
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.fKey.wasPressedThisFrame)
+            {
+                room3DoorAttemptPromptShown = false;
+                room3DoorRoutine = StartCoroutine(RobotOpensRoom2Door());
+            }
+        }
+
+        private IEnumerator RobotOpensRoom2Door()
+        {
+            ShowStatus("Bir de ben deneyeyim.");
+            yield return new WaitForSeconds(1.1f);
+
+            Vector2 buttonApproach = (Vector2)room3PowerButton.position + Vector2.left * .58f;
+            yield return StartCoroutine(MoveRobotForCabinetTask(buttonApproach));
+            if (!robotTaskSucceeded)
+            {
+                yield return StartCoroutine(FinishDoorTaskWithFailure("Güç düğmesine ulaşamıyorum."));
+                yield break;
+            }
+
+            movement.HoldPosition();
+            SpriteRenderer buttonRenderer = room3PowerButton.GetComponent<SpriteRenderer>();
+            Vector3 buttonScale = room3PowerButton.localScale;
+            room3PowerButton.localScale = buttonScale * .72f;
+            if (buttonRenderer != null)
+                buttonRenderer.color = new Color32(110, 196, 143, 255);
+            yield return new WaitForSeconds(.22f);
+            room3PowerButton.localScale = buttonScale;
+
+            yield return new WaitForSeconds(2f);
+            Vector3 westStart = room3DoorWest.position;
+            Vector3 eastStart = room3DoorEast.position;
+            Vector3 westOpen = westStart + Vector3.left * .72f;
+            Vector3 eastOpen = eastStart + Vector3.right * .72f;
+            float elapsed = 0f;
+            const float openingDuration = .7f;
+            while (elapsed < openingDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / openingDuration);
+                t = t * t * (3f - 2f * t);
+                room3DoorWest.position = Vector3.Lerp(westStart, westOpen, t);
+                room3DoorEast.position = Vector3.Lerp(eastStart, eastOpen, t);
+                yield return null;
+            }
+
+            room3DoorWest.position = westOpen;
+            room3DoorEast.position = eastOpen;
+            Collider2D westCollider = room3DoorWest.GetComponent<Collider2D>();
+            Collider2D eastCollider = room3DoorEast.GetComponent<Collider2D>();
+            if (westCollider != null) westCollider.enabled = false;
+            if (eastCollider != null) eastCollider.enabled = false;
+            Physics2D.SyncTransforms();
+            if (refreshNavigation != null) refreshNavigation();
+            room3DoorOpened = true;
+            HidePopups();
+            movement.ResumeFollowingPlayer();
+            room3DoorRoutine = null;
+        }
+
+        private IEnumerator FinishDoorTaskWithFailure(string message)
+        {
+            ShowStatus(message, true, 3f);
+            yield return new WaitForSeconds(3f);
+            room3DoorRoutine = null;
+        }
+
+        private IEnumerator MoveEntryStepToCabinet()
+        {
+            if (canvas != null && !canvas.gameObject.activeSelf)
+                canvas.gameObject.SetActive(true);
+            ShowStatus("Aa, bunun için girişte gördüğümüz basamağı kullanabiliriz.");
+            yield return new WaitForSeconds(3f);
+            ShowStatus("Beni burada bekle, getireceğim.");
+            yield return new WaitForSeconds(2.5f);
+            HidePopups();
+
+            Vector2 pickupPoint = (Vector2)secondFloorEntryStep.position + Vector2.down * .92f;
+            yield return StartCoroutine(MoveRobotForCabinetTask(pickupPoint));
+            if (!robotTaskSucceeded)
+            {
+                yield return StartCoroutine(FinishCabinetHelpWithFailure("Basamağa ulaşamıyorum; yol kapalı görünüyor."));
+                yield break;
+            }
+
+            BoxCollider2D stepCollider = secondFloorEntryStep.GetComponentInChildren<BoxCollider2D>(true);
+            if (stepCollider == null)
+            {
+                yield return StartCoroutine(FinishCabinetHelpWithFailure("Basamağı taşıyamıyorum."));
+                yield break;
+            }
+
+            float stepHalfWidth = stepCollider.bounds.extents.x;
+            stepCollider.enabled = false;
+            secondFloorEntryStep.SetParent(robot, true);
+            secondFloorEntryStep.localPosition = new Vector3(0f, .78f, 0f);
+            yield return new WaitForSeconds(.45f);
+
+            Collider2D cabinetCollider = secondFloorStepDestinationCabinet.GetComponent<Collider2D>();
+            Bounds cabinetBounds = cabinetCollider != null
+                ? cabinetCollider.bounds
+                : new Bounds(secondFloorStepDestinationCabinet.position, new Vector3(1.28f, 1.55f, 0f));
+            float cabinetLeft = cabinetBounds.min.x;
+            Vector2 stepDropPoint = new Vector2(cabinetLeft - stepHalfWidth, secondFloorStepDestinationCabinet.position.y);
+            Vector2 robotDropPoint = stepDropPoint + Vector2.down * .95f;
+
+            yield return StartCoroutine(MoveRobotForCabinetTask(robotDropPoint));
+            if (!robotTaskSucceeded)
+            {
+                secondFloorEntryStep.SetParent(secondFloorStepDestinationCabinet.root, true);
+                secondFloorEntryStep.position = robot.position + Vector3.left * .7f;
+                secondFloorEntryStep.rotation = Quaternion.identity;
+                stepCollider.enabled = true;
+                if (refreshNavigation != null) refreshNavigation();
+                yield return StartCoroutine(FinishCabinetHelpWithFailure("Basamağı dolabın yanına kadar getiremedim."));
+                yield break;
+            }
+
+            secondFloorEntryStep.SetParent(secondFloorStepDestinationCabinet.root, true);
+            secondFloorEntryStep.SetPositionAndRotation(
+                new Vector3(stepDropPoint.x, stepDropPoint.y, secondFloorEntryStep.position.z),
+                Quaternion.identity);
+            stepCollider.enabled = true;
+            Physics2D.SyncTransforms();
+            if (refreshNavigation != null) refreshNavigation();
+
+            movement.HoldPosition();
+            yield return new WaitForSeconds(2f);
+            yield return StartCoroutine(AnimatePlayerOverCabinet(stepDropPoint, cabinetBounds));
+            yield return new WaitForSeconds(.4f);
+            yield return StartCoroutine(AnimateRobotOverCabinet(stepDropPoint, cabinetBounds));
+            if (playerController != null) playerController.enabled = true;
+            movement.ResumeFollowingPlayer();
+            secondFloorCabinetHelpRoutine = null;
+        }
+
+        private IEnumerator FinishCabinetHelpWithFailure(string message)
+        {
+            ShowStatus(message, true, 3f);
+            yield return new WaitForSeconds(3f);
+            if (playerBody != null) playerBody.linearVelocity = Vector2.zero;
+            if (playerController != null) playerController.enabled = true;
+            secondFloorCabinetHelpRoutine = null;
+        }
+
+        private IEnumerator AnimatePlayerOverCabinet(Vector2 stepDropPoint, Bounds cabinetBounds)
+        {
+            if (playerCollider != null)
+                playerCollider.enabled = false;
+
+            float laneY = secondFloorStepDestinationCabinet.position.y;
+            yield return StartCoroutine(AnimatePlayerSegment(new Vector2(stepDropPoint.x - .52f, laneY), .42f, false));
+            yield return new WaitForSeconds(.15f);
+            yield return StartCoroutine(AnimatePlayerSegment(new Vector2(stepDropPoint.x - .22f, laneY), .32f, false));
+            yield return new WaitForSeconds(.15f);
+            yield return StartCoroutine(AnimatePlayerSegment(new Vector2(stepDropPoint.x + .2f, laneY), .38f, false));
+            yield return new WaitForSeconds(.6f);
+
+            Vector2 cabinetFarEdge = new Vector2(cabinetBounds.max.x - .18f, laneY);
+            yield return StartCoroutine(AnimatePlayerSegment(cabinetFarEdge, 1.05f, false));
+
+            Vector2 landingPoint = new Vector2(cabinetBounds.max.x + .75f, laneY - .45f);
+            yield return StartCoroutine(AnimatePlayerSegment(landingPoint, .68f, true));
+            Physics2D.SyncTransforms();
+            if (playerCollider != null)
+                playerCollider.enabled = true;
+            if (playerBody != null)
+                playerBody.linearVelocity = Vector2.zero;
+            if (playerAnimator != null)
+                playerAnimator.SetMotion(Vector2.zero);
+            if (player != null)
+                player.localScale = playerOriginalScale;
+        }
+
+        private IEnumerator AnimatePlayerSegment(Vector2 target, float duration, bool jump)
+        {
+            yield return StartCoroutine(AnimateActorSegment(
+                player, playerBody, playerAnimator, playerOriginalScale, target, duration, jump));
+        }
+
+        private IEnumerator AnimateRobotOverCabinet(Vector2 stepDropPoint, Bounds cabinetBounds)
+        {
+            movement.HoldPosition();
+            if (movement != null) movement.enabled = false;
+            if (robotAgent != null && robotAgent.enabled) robotAgent.enabled = false;
+            if (robotCollider != null) robotCollider.enabled = false;
+
+            float laneY = secondFloorStepDestinationCabinet.position.y;
+            Vector2 stepFront = new Vector2(stepDropPoint.x - .52f, laneY);
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale,
+                new Vector2(stepFront.x, laneY - .22f), .5f, false));
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, stepFront, .32f, false));
+            yield return new WaitForSeconds(.16f);
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale,
+                new Vector2(stepDropPoint.x - .22f, laneY), .32f, false));
+            yield return new WaitForSeconds(.16f);
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale,
+                new Vector2(stepDropPoint.x + .2f, laneY), .38f, false));
+            yield return new WaitForSeconds(.45f);
+
+            Vector2 cabinetFarEdge = new Vector2(cabinetBounds.max.x - .18f, laneY);
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, cabinetFarEdge, 1.05f, false));
+            Vector2 robotLandingPoint = new Vector2(cabinetBounds.max.x + .08f, laneY - .45f);
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, robotLandingPoint, .68f, true));
+            Physics2D.SyncTransforms();
+
+            if (robotCollider != null) robotCollider.enabled = true;
+            if (robotAgent != null)
+            {
+                robotAgent.enabled = true;
+                if (robotBody != null) robotAgent.Warp(robotBody.position);
+            }
+            if (movement != null) movement.enabled = true;
+        }
+
+        private IEnumerator AnimateActorSegment(Transform actor, Rigidbody2D body,
+            CharacterAnimator animator, Vector3 originalScale, Vector2 target, float duration, bool jump)
+        {
+            if (actor == null)
+                yield break;
+
+            Vector2 start = body != null ? body.position : (Vector2)actor.position;
+            Vector2 direction = target - start;
+            if (animator != null && direction.sqrMagnitude > .001f)
+                animator.SetMotion(direction.normalized);
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                yield return new WaitForFixedUpdate();
+                elapsed += Time.fixedDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                Vector2 position = Vector2.Lerp(start, target, t);
+                if (jump)
+                {
+                    float arc = Mathf.Sin(t * Mathf.PI);
+                    position.y += arc * .18f;
+                    actor.localScale = new Vector3(
+                        originalScale.x * (1f + arc * .06f),
+                        originalScale.y * (1f + arc * .16f),
+                        originalScale.z);
+                }
+
+                if (body != null)
+                    body.MovePosition(position);
+                else
+                    actor.position = new Vector3(position.x, position.y, actor.position.z);
+            }
+
+            if (body != null)
+            {
+                body.position = target;
+                body.linearVelocity = Vector2.zero;
+            }
+            actor.position = new Vector3(target.x, target.y, actor.position.z);
+            actor.localScale = originalScale;
+            if (animator != null)
+                animator.SetMotion(Vector2.zero);
+        }
+
+        private IEnumerator MoveRobotForCabinetTask(Vector2 target)
+        {
+            robotTaskSucceeded = false;
+            if (movement == null || !movement.StartMoveTask(target, false))
+                yield break;
+
+            float deadline = Time.unscaledTime + 25f;
+            while (movement.IsExecutingTask && Time.unscaledTime < deadline)
+                yield return null;
+
+            if (movement.IsExecutingTask)
+            {
+                movement.CancelTask();
+                movement.HoldPosition();
+                yield break;
+            }
+
+            robotTaskSucceeded = Vector2.Distance(robot.position, target) <= 1.4f;
+        }
+
         public void ShowRepairCompleteMessage()
         {
             batteryHelpDialogueShown = true;

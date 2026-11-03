@@ -117,6 +117,15 @@ namespace Woken.Characters
             return true;
         }
 
+        /// <summary>Stops the robot where it is and keeps it there until another task starts.</summary>
+        public void HoldPosition()
+        {
+            mode = MovementMode.StayAtDestination;
+            resumeFollowingAfterTask = false;
+            StopNavigation();
+            StopMovement();
+        }
+
         /// <summary>Resumes following the player after a route arrival pause.</summary>
         public void ResumeFollowingPlayer()
         {

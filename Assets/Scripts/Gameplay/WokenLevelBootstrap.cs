@@ -25,6 +25,8 @@ namespace Woken.Gameplay
         private Transform robot;
         private Transform firstFloorRoot;
         private Transform secondFloorRoot;
+        private Transform secondFloorEntryStepRoot;
+        private NavMeshSurface navigationSurface;
         private Transform firstFloorNorthDoor;
         private Transform firstFloorSouthDoor;
         private Rigidbody2D playerBody;
@@ -634,6 +636,15 @@ namespace Woken.Gameplay
             Color wood = new Color32(117, 91, 68, 255);
             Color leaf = new Color32(78, 112, 78, 255);
 
+            // Horizontally mirrored step tucked into the upper-right corner of the arrival room.
+            secondFloorEntryStepRoot = new GameObject("Floor 2 room 1 movable entry step").transform;
+            secondFloorEntryStepRoot.SetParent(root, false);
+            secondFloorEntryStepRoot.position = new Vector3(24.65f, 6.95f, 0f);
+            RectPiece("Floor 2 room 1 elevator entry step base", new Vector2(-7.35f, 6.95f), new Vector2(.92f, 1.02f), cabinet, 1, true, secondFloorEntryStepRoot);
+            RectPiece("Floor 2 room 1 elevator entry step lower tread", new Vector2(-7.53f, 6.95f), new Vector2(.62f, .82f), new Color32(173, 181, 176, 255), 2, false, secondFloorEntryStepRoot);
+            RectPiece("Floor 2 room 1 elevator entry step upper tread", new Vector2(-7.73f, 6.95f), new Vector2(.32f, .62f), new Color32(211, 211, 196, 255), 3, false, secondFloorEntryStepRoot);
+            RectPiece("Floor 2 room 1 elevator entry step front edge", new Vector2(-7.91f, 6.95f), new Vector2(.055f, .66f), new Color32(103, 118, 119, 255), 4, false, secondFloorEntryStepRoot);
+
             // Coffee counter along the north wall.
             RectPiece("Floor 2 room 1 coffee counter body", new Vector2(-10.55f, 6.78f),
                 new Vector2(4.9f, .9f), cabinet, 0, true, root);
@@ -701,6 +712,55 @@ namespace Woken.Gameplay
                 new Vector2(.48f, .62f), new Color32(91, 105, 105, 255), 1, true, root);
             RectPiece("Floor 2 room 1 lower waste bin rim", new Vector2(-7.45f, -6.55f),
                 new Vector2(.5f, .1f), new Color32(126, 140, 138, 255), 2, false, root);
+            // Room 2: cluttered records room; an upright cabinet blocks the right-hand exit.
+            Color r2Steel = new Color32(62, 75, 79, 255);
+            Color r2Face = new Color32(103, 118, 119, 255);
+            Color r2Trim = new Color32(145, 155, 149, 255);
+            Color r2Paper = new Color32(211, 205, 183, 255);
+            Color r2Folder = new Color32(139, 150, 134, 255);
+
+            // Keep the cabinet square and upright directly in front of the right-hand doorway.
+            RectPiece("Floor 2 room 2 doorway cabinet", new Vector2(4.15f, 4.8f), new Vector2(1.28f, 1.55f), r2Steel, 1, true, root);
+            RectPiece("Floor 2 room 2 doorway cabinet top", new Vector2(4.15f, 4.8f), new Vector2(1.04f, 1.3f), r2Face, 2, false, root);
+            for (int i = 0; i < 5; i++)
+            {
+                float dy = 4.32f + i * .24f;
+                RectPiece("Floor 2 room 2 doorway cabinet drawer " + i, new Vector2(4.15f, dy), new Vector2(.98f, .2f), new Color32(82, 97, 100, 255), 3, false, root);
+                RectPiece("Floor 2 room 2 doorway cabinet drawer pull " + i, new Vector2(4.15f, dy), new Vector2(.2f, .04f), r2Trim, 4, false, root);
+            }
+            RectPiece("Floor 2 room 2 loose drawer", new Vector2(-2.4f, 6f), new Vector2(1.45f, .64f), r2Steel, 2, true, root);
+            RectPiece("Floor 2 room 2 loose drawer inside", new Vector2(-2.4f, 6f), new Vector2(1.16f, .38f), r2Face, 3, false, root);
+
+            RectPiece("Floor 2 room 2 northwest archive cabinet", new Vector2(-5.3f, 6.25f), new Vector2(1.65f, 2.35f), r2Steel, 0, true, root);
+            RectPiece("Floor 2 room 2 northwest cabinet face", new Vector2(-5.3f, 6.25f), new Vector2(1.38f, 2.04f), r2Face, 1, false, root);
+            for (int i = 0; i < 3; i++)
+            {
+                float dy = 5.62f + i * .62f;
+                RectPiece("Floor 2 room 2 archive drawer " + i, new Vector2(-5.3f, dy), new Vector2(1.15f, .48f), new Color32(84, 99, 101, 255), 2, false, root);
+                RectPiece("Floor 2 room 2 archive handle " + i, new Vector2(-5.3f, dy), new Vector2(.24f, .045f), r2Trim, 3, false, root);
+            }
+            // The second cabinet has fallen onto its side above the doorway blocker.
+            RectPiece("Floor 2 room 2 northeast storage cabinet", new Vector2(3.55f, 6.65f), new Vector2(1.8f, 1.25f), r2Steel, 0, true, root);
+            root.Find("Floor 2 room 2 northeast storage cabinet").localRotation = Quaternion.Euler(0f, 0f, 90f);
+            RectPiece("Floor 2 room 2 northeast cabinet face", new Vector2(3.55f, 6.65f), new Vector2(1.5f, .98f), r2Face, 1, false, root);
+            root.Find("Floor 2 room 2 northeast cabinet face").localRotation = Quaternion.Euler(0f, 0f, 90f);
+            RectPiece("Floor 2 room 2 toppled cabinet side rail", new Vector2(3.55f, 6.65f), new Vector2(.08f, 1.56f), r2Trim, 2, false, root);
+            root.Find("Floor 2 room 2 toppled cabinet side rail").localRotation = Quaternion.Euler(0f, 0f, 90f);
+            RectPiece("Floor 2 room 2 toppled crate", new Vector2(-3.8f, 4.4f), new Vector2(1.18f, .9f), new Color32(125, 105, 79, 255), 1, true, root);
+            RectPiece("Floor 2 room 2 crate brace", new Vector2(-3.8f, 4.4f), new Vector2(.08f, .84f), new Color32(173, 145, 107, 255), 2, false, root);
+
+            RectPiece("Floor 2 room 2 loose green file", new Vector2(-3.25f, 3.05f), new Vector2(.72f, .48f), r2Folder, 0, false, root);
+            root.Find("Floor 2 room 2 loose green file").localRotation = Quaternion.Euler(0f, 0f, 14f);
+            RectPiece("Floor 2 room 2 paper one", new Vector2(-1.8f, 3.6f), new Vector2(.44f, .58f), r2Paper, 0, false, root);
+            root.Find("Floor 2 room 2 paper one").localRotation = Quaternion.Euler(0f, 0f, -12f);
+            RectPiece("Floor 2 room 2 paper two", new Vector2(-.95f, 3.15f), new Vector2(.4f, .52f), r2Paper, 0, false, root);
+            root.Find("Floor 2 room 2 paper two").localRotation = Quaternion.Euler(0f, 0f, 21f);
+            RectPiece("Floor 2 room 2 blue folder", new Vector2(.45f, 4.2f), new Vector2(.68f, .46f), new Color32(99, 126, 139, 255), 0, false, root);
+            root.Find("Floor 2 room 2 blue folder").localRotation = Quaternion.Euler(0f, 0f, -8f);
+            RectPiece("Floor 2 room 2 paper three", new Vector2(1.45f, 3.55f), new Vector2(.43f, .55f), r2Paper, 0, false, root);
+            root.Find("Floor 2 room 2 paper three").localRotation = Quaternion.Euler(0f, 0f, 9f);
+            RectPiece("Floor 2 room 2 loose archive folder", new Vector2(-2.65f, 5.45f), new Vector2(.82f, .56f), new Color32(154, 126, 98, 255), 0, false, root);
+            root.Find("Floor 2 room 2 loose archive folder").localRotation = Quaternion.Euler(0f, 0f, -17f);
             // Room 3: service-access room with a small robot-only passage to the release panel.
             Color serviceWall = new Color32(50, 63, 67, 255);
             Color serviceTrim = new Color32(120, 139, 140, 255);
@@ -727,15 +787,15 @@ namespace Woken.Gameplay
             RectPiece("Floor 2 room 3 service cable conduit", new Vector2(4.7f, -2.55f),
                 new Vector2(.12f, 1.65f), serviceWall, 0, true, root);
 
-            // Visible open sliding doorway from room 3 into room 2; the route remains clear.
+            // Closed sliding door blocks the room 3 to room 2 opening until the service button is pressed.
             RectPiece("Floor 2 room 3 to room 2 door jamb west", new Vector2(-.72f, 0f),
                 new Vector2(.14f, .54f), serviceTrim, 2, false, root);
             RectPiece("Floor 2 room 3 to room 2 door jamb east", new Vector2(.72f, 0f),
                 new Vector2(.14f, .54f), serviceTrim, 2, false, root);
-            RectPiece("Floor 2 room 3 to room 2 open door leaf west", new Vector2(-.98f, .08f),
-                new Vector2(.38f, .14f), serviceWall, 2, false, root);
-            RectPiece("Floor 2 room 3 to room 2 open door leaf east", new Vector2(.98f, .08f),
-                new Vector2(.38f, .14f), serviceWall, 2, false, root);
+            RectPiece("Floor 2 room 3 to room 2 door leaf west", new Vector2(-.34f, 0f),
+                new Vector2(.68f, .18f), serviceTrim, 3, true, root);
+            RectPiece("Floor 2 room 3 to room 2 door leaf east", new Vector2(.34f, 0f),
+                new Vector2(.68f, .18f), serviceTrim, 3, true, root);
             // Remaining room 3 details: compact utilities along the south and west edges.
             Color room3Cabinet = new Color32(79, 94, 98, 255);
             Color room3Top = new Color32(154, 165, 159, 255);
@@ -781,6 +841,12 @@ namespace Woken.Gameplay
                 new Vector2(.42f, .08f), room3Accent, 0, false, root);
             RectPiece("Floor 2 room 3 service slot indicator", new Vector2(2.62f, -1.65f),
                 new Vector2(.08f, .16f), new Color32(102, 188, 172, 255), 2, false, root);
+            GameObject yellowPassageInteraction = new GameObject("Floor 2 room 3 yellow passage interaction");
+            yellowPassageInteraction.transform.SetParent(root, false);
+            yellowPassageInteraction.transform.position = new Vector3(34.3f, -2.4f, 0f);
+            BoxCollider2D yellowPassageTrigger = yellowPassageInteraction.AddComponent<BoxCollider2D>();
+            yellowPassageTrigger.size = new Vector2(1.35f, .95f);
+            yellowPassageTrigger.isTrigger = true;
             // Room 5: quiet LLM control room. Keep its entry from room 4 and the east exit approachable.
             Color llmDark = new Color32(42, 55, 60, 255);
             Color llmSteel = new Color32(91, 108, 111, 255);
@@ -1440,7 +1506,8 @@ namespace Woken.Gameplay
         private void BuildNavigationSurface()
         {
             Physics2D.SyncTransforms();
-            NavMeshSurface surface = CreateNavigationSurface("Woken Continuous Navigation Surface");
+            navigationSurface = CreateNavigationSurface("Woken Continuous Navigation Surface");
+            NavMeshSurface surface = navigationSurface;
             Transform blackExterior = secondFloorRoot != null
                 ? secondFloorRoot.Find("Floor 2 black exterior")
                 : null;
@@ -1459,6 +1526,45 @@ namespace Woken.Gameplay
             {
                 if (backgroundRenderer != null)
                     backgroundRenderer.enabled = restoreBackground;
+            }
+        }
+
+        public void RebuildNavigationAfterStepMove()
+        {
+            if (navigationSurface == null)
+                return;
+
+            Physics2D.SyncTransforms();
+            Transform blackExterior = secondFloorRoot != null
+                ? secondFloorRoot.Find("Floor 2 black exterior")
+                : null;
+            SpriteRenderer backgroundRenderer = blackExterior != null
+                ? blackExterior.GetComponent<SpriteRenderer>()
+                : null;
+            bool restoreBackground = backgroundRenderer != null && backgroundRenderer.enabled;
+            if (backgroundRenderer != null)
+                backgroundRenderer.enabled = false;
+
+            NavMeshAgent agent = robot != null ? robot.GetComponent<NavMeshAgent>() : null;
+            bool restoreAgent = agent != null && agent.enabled;
+            Vector3 robotPosition = robotBody != null ? (Vector3)robotBody.position : robot != null ? robot.position : Vector3.zero;
+            if (restoreAgent)
+                agent.enabled = false;
+
+            try
+            {
+                navigationSurface.BuildNavMesh();
+            }
+            finally
+            {
+                if (backgroundRenderer != null)
+                    backgroundRenderer.enabled = restoreBackground;
+            }
+
+            if (restoreAgent)
+            {
+                agent.enabled = true;
+                agent.Warp(robotPosition);
             }
         }
 
@@ -1809,7 +1915,14 @@ namespace Woken.Gameplay
             robotController.SetPlayer(player);
 
             RobotRouteGuideUI routeGuide = gameObject.AddComponent<RobotRouteGuideUI>();
-            routeGuide.Initialize(player, robot, robotController, sceneCamera, firstFloorRoot.Find("Battery crate"));
+            routeGuide.Initialize(player, robot, robotController, sceneCamera, firstFloorRoot.Find("Battery crate"),
+                secondFloorEntryStepRoot,
+                secondFloorRoot.Find("Floor 2 room 2 doorway cabinet"),
+                secondFloorRoot.Find("Floor 2 room 3 release panel button"),
+                secondFloorRoot.Find("Floor 2 room 3 yellow passage interaction"),
+                secondFloorRoot.Find("Floor 2 room 3 to room 2 door leaf west"),
+                secondFloorRoot.Find("Floor 2 room 3 to room 2 door leaf east"),
+                RebuildNavigationAfterStepMove);
 
             playerBody = player.GetComponent<Rigidbody2D>();
             playerController = player.GetComponent<PlayerWASDController>();
@@ -1952,6 +2065,9 @@ namespace Woken.Gameplay
 
     }
 }
+
+
+
 
 
 
