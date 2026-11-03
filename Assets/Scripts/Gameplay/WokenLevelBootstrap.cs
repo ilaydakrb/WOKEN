@@ -622,9 +622,9 @@ namespace Woken.Gameplay
             RectPiece("Floor 2 room 4 recycling bin packaging", new Vector2(7.2f, 2.75f),
                 new Vector2(.72f, .92f), new Color32(94, 119, 119, 255), 1, true, root);
             // Room 5 contains the final exit; the exit itself remains closed for now.
-            RectPiece("Floor 2 exit door", new Vector2(14f, -4.25f),
+            RectPiece("Floor 2 exit door", new Vector2(14f, -6.15f),
                 new Vector2(.4f, 2.5f), wallFace, 2, true, root);
-            RectPiece("Floor 2 exit door face", new Vector2(13.96f, -4.25f),
+            RectPiece("Floor 2 exit door face", new Vector2(13.96f, -6.15f),
                 new Vector2(.08f, 2.1f), wallTrim, 3, false, root);
             // Room 1: compact arrival lounge and coffee counter. Keep the elevator-to-room-3 route clear.
             Color cabinet = new Color32(83, 94, 96, 255);
@@ -701,6 +701,62 @@ namespace Woken.Gameplay
                 new Vector2(.48f, .62f), new Color32(91, 105, 105, 255), 1, true, root);
             RectPiece("Floor 2 room 1 lower waste bin rim", new Vector2(-7.45f, -6.55f),
                 new Vector2(.5f, .1f), new Color32(126, 140, 138, 255), 2, false, root);
+            // Room 5: quiet LLM control room. Keep its entry from room 4 and the east exit approachable.
+            Color llmDark = new Color32(42, 55, 60, 255);
+            Color llmSteel = new Color32(91, 108, 111, 255);
+            Color llmLight = new Color32(144, 161, 160, 255);
+            Color llmScreen = new Color32(77, 153, 157, 255);
+
+            // Control desk sits diagonally above-left of the exit door.
+            RectPiece("Floor 2 room 5 control desk body", new Vector2(11.55f, -4.15f),
+                new Vector2(2.65f, .9f), llmDark, 0, true, root);
+            RectPiece("Floor 2 room 5 control desk top", new Vector2(11.55f, -3.88f),
+                new Vector2(2.72f, .48f), llmLight, 1, false, root);
+            RectPiece("Floor 2 room 5 control desk monitor", new Vector2(11.55f, -3.56f),
+                new Vector2(.92f, .11f), llmDark, 2, true, root);
+            RectPiece("Floor 2 room 5 control desk screen", new Vector2(11.55f, -3.55f),
+                new Vector2(.74f, .055f), llmScreen, 3, false, root);
+            RectPiece("Floor 2 room 5 control desk keyboard", new Vector2(11.55f, -3.93f),
+                new Vector2(.58f, .13f), new Color32(57, 68, 70, 255), 2, false, root);
+            root.Find("Floor 2 room 5 control desk body").localRotation = Quaternion.Euler(0f, 0f, 24f);
+            root.Find("Floor 2 room 5 control desk top").localRotation = Quaternion.Euler(0f, 0f, 24f);
+
+            // LLM robot is slightly smaller and stands behind the desk on its lower side.
+            RectPiece("Floor 2 room 5 LLM robot base", new Vector2(10.9f, -5.68f),
+                new Vector2(.62f, .34f), llmDark, 1, true, root);
+            RectPiece("Floor 2 room 5 LLM robot base light", new Vector2(10.9f, -5.52f),
+                new Vector2(.42f, .055f), llmScreen, 2, false, root);
+            RectPiece("Floor 2 room 5 LLM robot torso", new Vector2(10.9f, -5.25f),
+                new Vector2(.4f, .52f), llmSteel, 3, true, root);
+            RectPiece("Floor 2 room 5 LLM robot chest", new Vector2(10.9f, -5.19f),
+                new Vector2(.26f, .25f), llmLight, 4, false, root);
+            RectPiece("Floor 2 room 5 LLM robot chest display", new Vector2(10.9f, -5.2f),
+                new Vector2(.15f, .065f), llmScreen, 5, false, root);
+            RectPiece("Floor 2 room 5 LLM robot head", new Vector2(10.9f, -4.85f),
+                new Vector2(.42f, .34f), new Color32(192, 202, 198, 255), 5, true, root);
+            RectPiece("Floor 2 room 5 LLM robot face", new Vector2(10.9f, -4.86f),
+                new Vector2(.31f, .16f), llmDark, 6, false, root);
+            RectPiece("Floor 2 room 5 LLM robot eye left", new Vector2(10.83f, -4.86f),
+                new Vector2(.045f, .045f), new Color32(104, 215, 215, 255), 7, false, root);
+            RectPiece("Floor 2 room 5 LLM robot eye right", new Vector2(10.97f, -4.86f),
+                new Vector2(.045f, .045f), new Color32(104, 215, 215, 255), 7, false, root);
+            RectPiece("Floor 2 room 5 LLM robot arm left", new Vector2(10.66f, -5.27f),
+                new Vector2(.1f, .34f), llmLight, 4, true, root);
+            RectPiece("Floor 2 room 5 LLM robot arm right", new Vector2(11.14f, -5.27f),
+                new Vector2(.1f, .34f), llmLight, 4, true, root);
+            // Sparse technical fixtures on the opposite side of the room.
+            RectPiece("Floor 2 room 5 equipment cabinet", new Vector2(6.15f, -6.55f),
+                new Vector2(1.35f, 1.75f), llmSteel, 1, true, root);
+            RectPiece("Floor 2 room 5 equipment cabinet face", new Vector2(6.15f, -6.55f),
+                new Vector2(1.08f, 1.4f), new Color32(123, 138, 138, 255), 2, false, root);
+            RectPiece("Floor 2 room 5 equipment cabinet display", new Vector2(6.15f, -6.22f),
+                new Vector2(.66f, .18f), llmScreen, 3, false, root);
+            RectPiece("Floor 2 room 5 wall console", new Vector2(6.15f, -1.35f),
+                new Vector2(1.25f, .18f), llmDark, 1, true, root);
+            RectPiece("Floor 2 room 5 wall console screen", new Vector2(6.15f, -1.32f),
+                new Vector2(.82f, .09f), llmScreen, 2, false, root);
+            RectPiece("Floor 2 room 5 cable trunk", new Vector2(6.15f, -3.55f),
+                new Vector2(.14f, 2.6f), new Color32(67, 82, 85, 255), 0, true, root);
             // Preserve the existing connection between the first-floor gate and second-floor arrival.
             RectPiece(
                 "Security gate connector floor",
@@ -1815,6 +1871,9 @@ namespace Woken.Gameplay
 
     }
 }
+
+
+
 
 
 
