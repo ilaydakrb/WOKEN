@@ -16,6 +16,7 @@ namespace Woken.Gameplay
     public sealed class WokenLevelBootstrap : MonoBehaviour
     {
         private static Sprite pixel;
+        private static Sprite buttonCircleSprite;
         private const float SecondFloorOffsetX = 32f;
 
         // Temporary testing switch: set false to restore the battery requirement.
@@ -42,12 +43,22 @@ namespace Woken.Gameplay
         private GameObject elevatorPrompt;
         private RectTransform elevatorPromptRect;
         private RectTransform elevatorPromptCanvasRect;
+        private Text elevatorPromptText;
         private bool wasNearElevator;
         private float elevatorPromptHideAt;
         private Transform elevatorServicePanel;
         private WorldObjectNameUI worldObjectNameUI;
         private float elevatorPanelNearSince = -1f;
         private bool elevatorPanelMessageShown;
+        private bool wasNearControlPanel;
+        private bool wasNearHiddenDrawer;
+        private HiddenDrawerNotebookUI hiddenDrawerNotebook;
+        private Transform hiddenDrawerFront;
+        private Transform hiddenDrawerHandle;
+        private Vector3 hiddenDrawerFrontClosedPosition;
+        private Vector3 hiddenDrawerHandleClosedPosition;
+        private bool hiddenDrawerOpen;
+        private bool openingHiddenDrawer;
         private BatteryBayInteractionUI batteryBayInteraction;
 
         private void Awake()
@@ -84,9 +95,12 @@ namespace Woken.Gameplay
             yield return null;
 
             BuildCharacters();
+            CacheControlPanelObjects();
             BuildElevatorPrompt();
             elevatorServicePanel = firstFloorRoot.Find("Elevator service panel");
             worldObjectNameUI = GetComponent<WorldObjectNameUI>();
+            hiddenDrawerNotebook = gameObject.AddComponent<HiddenDrawerNotebookUI>();
+            hiddenDrawerNotebook.Initialize(player, hiddenDrawerFront, () => hiddenDrawerOpen, worldObjectNameUI);
             Transform batterySource = firstFloorRoot.Find("Battery crate");
             Transform batteryBay = firstFloorRoot.Find("Battery bay backing");
             Transform batteryStatusLight = firstFloorRoot.Find("Battery bay status light");
@@ -141,6 +155,8 @@ namespace Woken.Gameplay
                 return;
 
             UpdateElevatorPanelProximityMessage();
+            UpdateControlPanelProximityMessage();
+            UpdateHiddenDrawerProximityMessage();
 
             Vector2 input = playerController != null ? playerController.MoveInput : Vector2.zero;
             if (input.sqrMagnitude > 0.05f)
@@ -156,7 +172,10 @@ namespace Woken.Gameplay
             bool canInteract = activeFloor == 1 && !elevatorTransitioning
                 && playerController != null && closeEnough && facingElevator && batteryReady
                 && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay);
-            UpdateElevatorPrompt(canInteract);
+            bool returnBlocked = activeFloor == 2 && !elevatorTransitioning
+                && Vector2.Distance(player.position, new Vector2(13.82f, -4f)) <= 1.65f;
+            UpdateElevatorPrompt(canInteract, returnBlocked);
+            UpdateControlPanelInput();
 
             if (activeFloor != 1 || elevatorTransitioning || playerController == null)
                 return;
@@ -208,6 +227,140 @@ namespace Woken.Gameplay
                     2f);
             elevatorPanelMessageShown = true;
         }
+        private void CacheControlPanelObjects()
+        {
+            if (secondFloorRoot == null)
+                return;
+
+            hiddenDrawerFront = secondFloorRoot.Find("Floor 2 room 3 parts cabinet front");
+            hiddenDrawerHandle = secondFloorRoot.Find("Floor 2 room 3 parts cabinet handle");
+            if (hiddenDrawerFront != null)
+                hiddenDrawerFrontClosedPosition = hiddenDrawerFront.position;
+            if (hiddenDrawerHandle != null)
+                hiddenDrawerHandleClosedPosition = hiddenDrawerHandle.position;
+        }
+
+        private bool IsNearControlPanel()
+        {
+            return activeFloor == 2
+                && Vector2.Distance(player.position, new Vector2(27.65f, -6.83f)) <= 1.45f;
+        }
+
+        private void UpdateControlPanelInput()
+        {
+            if (!IsNearControlPanel())
+                return;
+
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
+                return;
+
+            if (keyboard.kKey.wasPressedThisFrame)
+                SetControlIndicator("Floor 2 room 3 button Status Red",
+                    new Color32(242, 80, 69, 255));
+            if (keyboard.mKey.wasPressedThisFrame)
+                SetControlIndicator("Floor 2 room 3 button Status Blue",
+                    new Color32(83, 190, 245, 255));
+            if (keyboard.yKey.wasPressedThisFrame)
+                SetControlIndicator("Floor 2 room 3 button Status Green",
+                    new Color32(102, 222, 139, 255));
+            if (keyboard.sKey.wasPressedThisFrame)
+            {
+                SetControlIndicator("Floor 2 room 3 button Status Yellow",
+                    new Color32(248, 212, 88, 255));
+                if (!hiddenDrawerOpen && !openingHiddenDrawer)
+                    StartCoroutine(OpenHiddenDrawer());
+            }
+        }
+
+        private void SetControlIndicator(string litObjectName, Color litColor)
+        {
+            LightControlIndicator("Floor 2 room 3 button Status Red", new Color32(118, 48, 46, 255));
+            LightControlIndicator("Floor 2 room 3 button Status Blue", new Color32(43, 90, 119, 255));
+            LightControlIndicator("Floor 2 room 3 button Status Green", new Color32(59, 105, 73, 255));
+            LightControlIndicator("Floor 2 room 3 button Status Yellow", new Color32(123, 98, 44, 255));
+            LightControlIndicator(litObjectName, litColor);
+        }
+
+        private void LightControlIndicator(string objectName, Color lightColor)
+        {
+            if (secondFloorRoot == null)
+                return;
+
+            Transform indicator = secondFloorRoot.Find(objectName);
+            SpriteRenderer renderer = indicator != null ? indicator.GetComponent<SpriteRenderer>() : null;
+            if (renderer != null)
+                renderer.color = lightColor;
+        }
+
+        private IEnumerator OpenHiddenDrawer()
+        {
+            if (hiddenDrawerFront == null || hiddenDrawerHandle == null)
+                yield break;
+
+            openingHiddenDrawer = true;
+            Vector3 frontTarget = hiddenDrawerFrontClosedPosition + Vector3.left * .58f;
+            Vector3 handleTarget = hiddenDrawerHandleClosedPosition + Vector3.left * .58f;
+            float elapsed = 0f;
+            const float duration = .35f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+                hiddenDrawerFront.position = Vector3.Lerp(hiddenDrawerFrontClosedPosition, frontTarget, t);
+                hiddenDrawerHandle.position = Vector3.Lerp(hiddenDrawerHandleClosedPosition, handleTarget, t);
+                yield return null;
+            }
+
+            hiddenDrawerFront.position = frontTarget;
+            hiddenDrawerHandle.position = handleTarget;
+            openingHiddenDrawer = false;
+            hiddenDrawerOpen = true;
+        }
+
+        private void UpdateControlPanelProximityMessage()
+        {
+            bool nearControlPanel = IsNearControlPanel();
+            if (!nearControlPanel)
+            {
+                wasNearControlPanel = false;
+                return;
+            }
+
+            if (wasNearControlPanel)
+                return;
+
+            wasNearControlPanel = true;
+            if (worldObjectNameUI != null)
+                worldObjectNameUI.ShowMessage(
+                    "Rengin baş harfine tıklayarak butonlara basabilirsiniz.",
+                    new Vector3(27.65f, -6.08f, 0f),
+                    2f,
+                    new Vector2(560f, 92f));
+        }
+
+        private void UpdateHiddenDrawerProximityMessage()
+        {
+            bool nearHiddenDrawer = activeFloor == 2
+                && hiddenDrawerOpen
+                && hiddenDrawerFront != null
+                && Vector2.Distance(player.position, hiddenDrawerFront.position) <= 1.3f;
+            if (!nearHiddenDrawer)
+            {
+                wasNearHiddenDrawer = false;
+                return;
+            }
+
+            if (wasNearHiddenDrawer)
+                return;
+
+            wasNearHiddenDrawer = true;
+            if (worldObjectNameUI != null)
+                worldObjectNameUI.ShowMessage(
+                    "F ile defteri okuyabilirsiniz.",
+                    hiddenDrawerFront.position + Vector3.up * .9f,
+                    1.3f);
+        }
         private void BuildElevatorPrompt()
         {
             GameObject canvasObject = new GameObject("Elevator instruction canvas",
@@ -248,7 +401,8 @@ namespace Woken.Gameplay
             textRect.anchorMax = Vector2.one;
             textRect.offsetMin = new Vector2(8f, 5f);
             textRect.offsetMax = new Vector2(-8f, -5f);
-            Text label = textObject.GetComponent<Text>();
+            elevatorPromptText = textObject.GetComponent<Text>();
+            Text label = elevatorPromptText;
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "Güvenlik kapısını açmak için F’ye bas.";
             label.fontSize = 22;
@@ -263,16 +417,22 @@ namespace Woken.Gameplay
             elevatorPrompt.SetActive(false);
         }
 
-        private void UpdateElevatorPrompt(bool canInteract)
+        private void UpdateElevatorPrompt(bool canInteract, bool returnBlocked)
         {
             if (elevatorPrompt == null)
                 return;
 
-            if (canInteract && !wasNearElevator)
+            bool shouldPrompt = canInteract || returnBlocked;
+            if (shouldPrompt && !wasNearElevator)
                 elevatorPromptHideAt = Time.unscaledTime + 1.3f;
-            wasNearElevator = canInteract;
+            wasNearElevator = shouldPrompt;
 
-            bool shouldShow = canInteract && Time.unscaledTime < elevatorPromptHideAt;
+            if (elevatorPromptText != null)
+                elevatorPromptText.text = returnBlocked
+                    ? "Bu kapıdan geri dönüş mümkün değil."
+                    : "Güvenlik kapısını açmak için F’ye bas.";
+
+            bool shouldShow = shouldPrompt && Time.unscaledTime < elevatorPromptHideAt;
             elevatorPrompt.SetActive(shouldShow);
             if (!shouldShow || sceneCamera == null)
                 return;
@@ -324,6 +484,11 @@ namespace Woken.Gameplay
 
             if (elevatorPrompt != null) elevatorPrompt.SetActive(false);
             elevatorTransitioning = true;
+            Collider2D playerCollider = player != null ? player.GetComponent<Collider2D>() : null;
+            Collider2D robotCollider = robot != null ? robot.GetComponent<Collider2D>() : null;
+            bool ignoredActorCollision = playerCollider != null && robotCollider != null;
+            if (ignoredActorCollision)
+                Physics2D.IgnoreCollision(playerCollider, robotCollider, true);
             playerController.enabled = false;
             if (robotController != null)
             {
@@ -356,11 +521,13 @@ namespace Woken.Gameplay
                 routeCanvas.SetActive(false);
 
             Coroutine playerCrossing = StartCoroutine(MoveActorTo(
-                playerBody, playerAnimator, new Vector2(19.25f, -4f), 3.3f));
+                playerBody, playerAnimator, new Vector2(19.25f, -4f), 6f));
             Coroutine robotCrossing = StartCoroutine(MoveActorTo(
-                robotBody, robotAnimator, new Vector2(18.45f, -4f), 3.3f));
+                robotBody, robotAnimator, new Vector2(18.45f, -4f), 6f));
             yield return playerCrossing;
             yield return robotCrossing;
+            if (ignoredActorCollision)
+                Physics2D.IgnoreCollision(playerCollider, robotCollider, false);
 
             yield return StartCoroutine(AnimateElevatorDoors(
                 firstFloorNorthDoor, firstFloorSouthDoor, false, 0.8f));
@@ -695,6 +862,112 @@ namespace Woken.Gameplay
                 new Vector2(.78f, .64f), leaf, 2, false, root);
             RectPiece("Floor 2 room 1 plant leaf highlight", new Vector2(-13.05f, 4.96f),
                 new Vector2(.24f, .33f), new Color32(112, 144, 91, 255), 3, false, root);
+
+            WorldObjectNameUI roomObjectNames = GetComponent<WorldObjectNameUI>();
+            if (roomObjectNames != null)
+            {
+                Transform packingTable = root.Find("Floor 2 room 4 packing table body");
+                Collider2D packingTableCollider = packingTable != null ? packingTable.GetComponent<Collider2D>() : null;
+                if (packingTableCollider != null)
+                    roomObjectNames.Register(packingTableCollider, "Çalışma Masası",
+                        packingTable.position + Vector3.up * .8f);
+
+                Transform recyclingBinA = root.Find("Floor 2 room 4 recycling bin cardboard");
+                Collider2D recyclingBinColliderA = recyclingBinA != null ? recyclingBinA.GetComponent<Collider2D>() : null;
+                if (recyclingBinColliderA != null)
+                    roomObjectNames.Register(recyclingBinColliderA, "Kutu",
+                        recyclingBinA.position + Vector3.up * .6f);
+                Transform recyclingBinB = root.Find("Floor 2 room 4 recycling bin packaging");
+                Collider2D recyclingBinColliderB = recyclingBinB != null ? recyclingBinB.GetComponent<Collider2D>() : null;
+                if (recyclingBinColliderB != null)
+                    roomObjectNames.Register(recyclingBinColliderB, "Kutu",
+                        recyclingBinB.position + Vector3.up * .6f);
+
+                Transform northStorageRack = root.Find("Floor 2 room 4 north shelving frame");
+                Collider2D northStorageRackCollider = northStorageRack != null ? northStorageRack.GetComponent<Collider2D>() : null;
+                if (northStorageRackCollider != null)
+                    roomObjectNames.Register(northStorageRackCollider, "Koli Dolabı",
+                        northStorageRack.position + Vector3.up * .7f);
+
+                Transform cornerCarton = root.Find("Floor 2 room 4 corner carton");
+                Collider2D cornerCartonCollider = cornerCarton != null ? cornerCarton.GetComponent<Collider2D>() : null;
+                if (cornerCartonCollider != null)
+                    roomObjectNames.Register(cornerCartonCollider, "Koli",
+                        cornerCarton.position + Vector3.up * .65f);
+                Transform cornerCrate = root.Find("Floor 2 room 4 corner crate");
+                Collider2D cornerCrateCollider = cornerCrate != null ? cornerCrate.GetComponent<Collider2D>() : null;
+                if (cornerCrateCollider != null)
+                    roomObjectNames.Register(cornerCrateCollider, "Koli",
+                        cornerCrate.position + Vector3.up * .55f);
+
+                Transform cartPlatform = root.Find("Floor 2 room 4 hand cart platform");
+                Collider2D cartPlatformCollider = cartPlatform != null ? cartPlatform.GetComponent<Collider2D>() : null;
+                if (cartPlatformCollider != null)
+                    roomObjectNames.Register(cartPlatformCollider, "Koli Cihazı",
+                        cartPlatform.position + Vector3.up * .75f);
+                Transform cartHandle = root.Find("Floor 2 room 4 hand cart handle");
+                Collider2D cartHandleCollider = cartHandle != null ? cartHandle.GetComponent<Collider2D>() : null;
+                if (cartHandleCollider != null)
+                    roomObjectNames.Register(cartHandleCollider, "Koli Cihazı",
+                        cartHandle.position + Vector3.up * .75f);
+
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 4 PPE helmet click area",
+                    new Vector2(12.55f, 2.57f), new Vector2(.56f, .48f),
+                    "Koliler", Vector3.up * .5f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 4 PPE gloves click area",
+                    new Vector2(13.25f, 2.56f), new Vector2(.56f, .46f),
+                    "Koliler", Vector3.up * .5f);
+                Transform kitchen = root.Find("Floor 2 room 1 coffee counter body");
+                Collider2D kitchenCollider = kitchen != null ? kitchen.GetComponent<Collider2D>() : null;
+                if (kitchenCollider != null)
+                    roomObjectNames.Register(kitchenCollider, "Mutfak",
+                        kitchen.position + Vector3.up * .8f);
+
+                Transform step = secondFloorEntryStepRoot != null
+                    ? secondFloorEntryStepRoot.Find("Floor 2 room 1 elevator entry step upper tread")
+                    : null;
+                if (step != null)
+                {
+                    BoxCollider2D stepClickArea = step.gameObject.AddComponent<BoxCollider2D>();
+                    stepClickArea.isTrigger = true;
+                    stepClickArea.size = new Vector2(1.8f, 1.5f);
+                    roomObjectNames.Register(stepClickArea, "Basamak",
+                        step.position + Vector3.down * .45f);
+                }
+                else
+                {
+                    Debug.LogWarning("Basamak etiketi için üst basamak nesnesi bulunamadı.", this);
+                }
+
+                Transform rug = root.Find("Floor 2 room 1 rug");
+                if (rug != null)
+                {
+                    BoxCollider2D rugClickArea = rug.gameObject.AddComponent<BoxCollider2D>();
+                    rugClickArea.isTrigger = true;
+                    roomObjectNames.Register(rugClickArea, "Halı", rug.position + Vector3.up * 1.4f);
+                }
+
+                Transform sofa = root.Find("Floor 2 room 1 sofa base");
+                Collider2D sofaCollider = sofa != null ? sofa.GetComponent<Collider2D>() : null;
+                if (sofaCollider != null)
+                    roomObjectNames.Register(sofaCollider, "Koltuk", sofa.position + Vector3.up * .9f);
+
+                Transform coffeeTable = root.Find("Floor 2 room 1 coffee table top");
+                Collider2D tableCollider = coffeeTable != null ? coffeeTable.GetComponent<Collider2D>() : null;
+                if (tableCollider != null)
+                    roomObjectNames.Register(tableCollider, "Masa", coffeeTable.position + Vector3.up * .65f);
+
+                Transform decorativeTree = root.Find("Floor 2 room 1 plant leaves");
+                if (decorativeTree != null)
+                {
+                    BoxCollider2D treeClickArea = decorativeTree.gameObject.AddComponent<BoxCollider2D>();
+                    treeClickArea.isTrigger = true;
+                    treeClickArea.size = new Vector2(1f, 1f);
+                    roomObjectNames.Register(treeClickArea, "Süs Ağacı",
+                        decorativeTree.position + Vector3.up * .65f);
+                }
+            }
+
             // Lower-wall rest details; centered below the walk lane so the elevator route stays open.
             RectPiece("Floor 2 room 1 lower bench base", new Vector2(-11.4f, -6.78f),
                 new Vector2(2.15f, .64f), new Color32(67, 79, 81, 255), 0, true, root);
@@ -712,6 +985,53 @@ namespace Woken.Gameplay
                 new Vector2(.48f, .62f), new Color32(91, 105, 105, 255), 1, true, root);
             RectPiece("Floor 2 room 1 lower waste bin rim", new Vector2(-7.45f, -6.55f),
                 new Vector2(.5f, .1f), new Color32(126, 140, 138, 255), 2, false, root);
+
+            // A small flower vase sits on the third object in the lower row.
+            RectPiece("Floor 2 room 1 lower row vase body", new Vector2(-7.45f, -6.38f),
+                new Vector2(.23f, .24f), new Color32(168, 104, 83, 255), 3, false, root);
+            RectPiece("Floor 2 room 1 lower row vase neck", new Vector2(-7.45f, -6.22f),
+                new Vector2(.12f, .1f), new Color32(184, 122, 95, 255), 4, false, root);
+            RectPiece("Floor 2 room 1 lower row vase rim", new Vector2(-7.45f, -6.16f),
+                new Vector2(.18f, .04f), new Color32(205, 147, 113, 255), 4, false, root);
+            RectPiece("Floor 2 room 1 vase flower stem left", new Vector2(-7.49f, -5.99f),
+                new Vector2(.025f, .25f), new Color32(79, 130, 82, 255), 4, false, root);
+            RectPiece("Floor 2 room 1 vase flower stem right", new Vector2(-7.41f, -6.01f),
+                new Vector2(.025f, .2f), new Color32(79, 130, 82, 255), 4, false, root);
+            RectPiece("Floor 2 room 1 vase flower leaf left", new Vector2(-7.54f, -6.02f),
+                new Vector2(.1f, .05f), new Color32(91, 151, 91, 255), 5, false, root);
+            RectPiece("Floor 2 room 1 vase flower leaf right", new Vector2(-7.36f, -6.04f),
+                new Vector2(.1f, .05f), new Color32(91, 151, 91, 255), 5, false, root);
+            RectPiece("Floor 2 room 1 vase flower left bloom", new Vector2(-7.49f, -5.83f),
+                new Vector2(.12f, .12f), new Color32(211, 163, 89, 255), 5, false, root);
+            RectPiece("Floor 2 room 1 vase flower left center", new Vector2(-7.49f, -5.83f),
+                new Vector2(.04f, .04f), new Color32(105, 76, 53, 255), 6, false, root);
+            RectPiece("Floor 2 room 1 vase flower right bloom", new Vector2(-7.41f, -5.87f),
+                new Vector2(.12f, .12f), new Color32(197, 115, 130, 255), 5, false, root);
+            RectPiece("Floor 2 room 1 vase flower right center", new Vector2(-7.41f, -5.87f),
+                new Vector2(.04f, .04f), new Color32(105, 76, 53, 255), 6, false, root);
+            Transform vase = root.Find("Floor 2 room 1 lower row vase body");
+            if (vase != null)
+            {
+                BoxCollider2D vaseClickArea = vase.gameObject.AddComponent<BoxCollider2D>();
+                vaseClickArea.isTrigger = true;
+                vaseClickArea.offset = new Vector2(0f, .3f);
+                vaseClickArea.size = new Vector2(.7f, .85f);
+                WorldObjectNameUI nameUI = GetComponent<WorldObjectNameUI>();
+                if (nameUI != null)
+                {
+                    nameUI.Register(vaseClickArea, "Vazo", vase.position + Vector3.up * .52f);
+                    Transform sofa = root.Find("Floor 2 room 1 lower bench base");
+                    Collider2D sofaCollider = sofa != null ? sofa.GetComponent<Collider2D>() : null;
+                    if (sofaCollider != null)
+                        nameUI.Register(sofaCollider, "Koltuk", sofa.position + Vector3.up * .72f);
+
+                    Transform drawer = root.Find("Floor 2 room 1 lower side table");
+                    Collider2D drawerCollider = drawer != null ? drawer.GetComponent<Collider2D>() : null;
+                    if (drawerCollider != null)
+                        nameUI.Register(drawerCollider, "Çekmece", drawer.position + Vector3.up * .65f);
+                }
+            }
+
             // Room 2: cluttered records room; an upright cabinet blocks the right-hand exit.
             Color r2Steel = new Color32(62, 75, 79, 255);
             Color r2Face = new Color32(103, 118, 119, 255);
@@ -761,6 +1081,57 @@ namespace Woken.Gameplay
             root.Find("Floor 2 room 2 paper three").localRotation = Quaternion.Euler(0f, 0f, 9f);
             RectPiece("Floor 2 room 2 loose archive folder", new Vector2(-2.65f, 5.45f), new Vector2(.82f, .56f), new Color32(154, 126, 98, 255), 0, false, root);
             root.Find("Floor 2 room 2 loose archive folder").localRotation = Quaternion.Euler(0f, 0f, -17f);
+            if (roomObjectNames != null)
+            {
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 loose file click area",
+                    new Vector2(-3.25f, 3.05f), new Vector2(.9f, .7f),
+                    "Defterler ve Dosyalar", Vector3.up * .45f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 paper one click area",
+                    new Vector2(-1.8f, 3.6f), new Vector2(.65f, .8f),
+                    "Defterler ve Dosyalar", Vector3.up * .45f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 paper two click area",
+                    new Vector2(-.95f, 3.15f), new Vector2(.6f, .7f),
+                    "Defterler ve Dosyalar", Vector3.up * .45f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 blue folder click area",
+                    new Vector2(.45f, 4.2f), new Vector2(.85f, .65f),
+                    "Defterler ve Dosyalar", Vector3.up * .45f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 paper three click area",
+                    new Vector2(1.45f, 3.55f), new Vector2(.65f, .75f),
+                    "Defterler ve Dosyalar", Vector3.up * .45f);
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 2 archive folder click area",
+                    new Vector2(-2.65f, 5.45f), new Vector2(1f, .75f),
+                    "Defterler ve Dosyalar", Vector3.up * .5f);
+
+                Transform doorwayBlocker = root.Find("Floor 2 room 2 doorway cabinet");
+                Collider2D doorwayBlockerCollider = doorwayBlocker != null
+                    ? doorwayBlocker.GetComponent<Collider2D>()
+                    : null;
+                if (doorwayBlockerCollider != null)
+                    roomObjectNames.Register(doorwayBlockerCollider, "Devrilmiş Çekmece",
+                        doorwayBlocker.position + Vector3.up * 1.1f);
+
+                Transform rotatedCabinet = root.Find("Floor 2 room 2 northeast storage cabinet");
+                Collider2D rotatedCabinetCollider = rotatedCabinet != null
+                    ? rotatedCabinet.GetComponent<Collider2D>()
+                    : null;
+                if (rotatedCabinetCollider != null)
+                    roomObjectNames.Register(rotatedCabinetCollider, "Devrilmiş Dolap",
+                        rotatedCabinet.position + Vector3.up * 1f);
+                Transform brownCrate = root.Find("Floor 2 room 2 toppled crate");
+                Collider2D brownCrateCollider = brownCrate != null
+                    ? brownCrate.GetComponent<Collider2D>()
+                    : null;
+                if (brownCrateCollider != null)
+                    roomObjectNames.Register(brownCrateCollider, "Kutu",
+                        brownCrate.position + Vector3.up * .7f);
+                Transform toppledDrawer = root.Find("Floor 2 room 2 northwest archive cabinet");
+                Collider2D toppledDrawerCollider = toppledDrawer != null
+                    ? toppledDrawer.GetComponent<Collider2D>()
+                    : null;
+                if (toppledDrawerCollider != null)
+                    roomObjectNames.Register(toppledDrawerCollider, "Devrilmiş Çekmece",
+                        toppledDrawer.position + Vector3.up * 1.35f);
+            }
             // Room 3: service-access room with a small robot-only passage to the release panel.
             Color serviceWall = new Color32(50, 63, 67, 255);
             Color serviceTrim = new Color32(120, 139, 140, 255);
@@ -816,23 +1187,54 @@ namespace Woken.Gameplay
             RectPiece("Floor 2 room 3 bench wrench", new Vector2(-3.95f, -6.58f),
                 new Vector2(.38f, .07f), room3Accent, 3, false, root);
 
+            // Decorative, non-interactive round buttons scattered across the workbench.
+            AddRoundButton("Blue", new Vector2(-5.22f, -6.82f), .28f,
+                new Color32(72, 157, 205, 255), root);
+            AddRoundButton("Red", new Vector2(-4.78f, -6.94f), .19f,
+                new Color32(204, 78, 74, 255), root);
+            AddRoundButton("Yellow", new Vector2(-4.35f, -6.78f), .34f,
+                new Color32(224, 187, 70, 255), root);
+            AddRoundButton("Green", new Vector2(-3.55f, -6.91f), .23f,
+                new Color32(78, 164, 108, 255), root);
+            if (roomObjectNames != null)
+                RegisterSecondFloorClickLabel(roomObjectNames, "Control panel click area",
+                    new Vector2(-4.35f, -6.83f), new Vector2(1.98f, .52f),
+                    "Kontrol Paneli", Vector3.up * .68f);
+
             // Small closed parts cabinet on the lower east wall, clear of the service bay.
             RectPiece("Floor 2 room 3 parts cabinet", new Vector2(4.25f, -6.35f),
                 new Vector2(.95f, 1.55f), room3Cabinet, 0, true, root);
+            RectPiece("Floor 2 room 3 hidden drawer interior", new Vector2(4.25f, -6.35f),
+                new Vector2(.66f, 1.16f), new Color32(29, 39, 42, 255), 1, false, root);
             RectPiece("Floor 2 room 3 parts cabinet front", new Vector2(4.25f, -6.35f),
-                new Vector2(.72f, 1.24f), new Color32(126, 140, 139, 255), 1, false, root);
+                new Vector2(.72f, 1.24f), new Color32(126, 140, 139, 255), 2, false, root);
             RectPiece("Floor 2 room 3 parts cabinet handle", new Vector2(4.02f, -6.35f),
-                new Vector2(.06f, .32f), room3Accent, 2, false, root);
+                new Vector2(.06f, .32f), room3Accent, 3, false, root);
+            Transform hiddenDrawer = root.Find("Floor 2 room 3 parts cabinet");
+            Collider2D hiddenDrawerCollider = hiddenDrawer != null
+                ? hiddenDrawer.GetComponent<Collider2D>()
+                : null;
+            if (roomObjectNames != null && hiddenDrawerCollider != null)
+                roomObjectNames.Register(hiddenDrawerCollider, "Gizli Çekmece",
+                    hiddenDrawer.position + Vector3.up * 1f);
 
             // Wall-mounted status board in the west upper section; keep the room 2 doorway clear.
             RectPiece("Floor 2 room 3 status board frame", new Vector2(-5.55f, -.9f),
-                new Vector2(1.1f, .16f), room3Cabinet, 1, false, root);
+                new Vector2(1.1f, .16f), room3Cabinet, 1, true, root);
             RectPiece("Floor 2 room 3 status board screen", new Vector2(-5.55f, -.88f),
                 new Vector2(.78f, .07f), new Color32(87, 151, 155, 255), 2, false, root);
-            RectPiece("Floor 2 room 3 status light green", new Vector2(-5.95f, -1.15f),
-                new Vector2(.1f, .1f), new Color32(108, 184, 139, 255), 2, false, root);
-            RectPiece("Floor 2 room 3 status light amber", new Vector2(-5.68f, -1.15f),
-                new Vector2(.1f, .1f), room3Accent, 2, false, root);
+            AddRoundButton("Status Green", new Vector2(-5.95f, -1.15f), .1f,
+                new Color32(59, 105, 73, 255), root, true);
+            AddRoundButton("Status Yellow", new Vector2(-5.68f, -1.15f), .1f,
+                new Color32(123, 98, 44, 255), root, true);
+            AddRoundButton("Status Blue", new Vector2(-5.42f, -1.15f), .1f,
+                new Color32(43, 90, 119, 255), root, true);
+            AddRoundButton("Status Red", new Vector2(-5.16f, -1.15f), .1f,
+                new Color32(118, 48, 46, 255), root, true);
+            if (roomObjectNames != null)
+                RegisterSecondFloorClickLabel(roomObjectNames, "Control indicator click area",
+                    new Vector2(-5.55f, -1.02f), new Vector2(1.38f, .5f),
+                    "Kontrol Göstergesi", Vector3.up * .55f);
 
             // Caution marks make the robot-only service opening easy to notice without adding another route.
             RectPiece("Floor 2 room 3 service slot floor mark west", new Vector2(1.85f, -2.4f),
@@ -903,6 +1305,30 @@ namespace Woken.Gameplay
                 new Vector2(.82f, .09f), llmScreen, 2, false, root);
             RectPiece("Floor 2 room 5 cable trunk", new Vector2(6.15f, -3.55f),
                 new Vector2(.14f, 2.6f), new Color32(67, 82, 85, 255), 0, true, root);
+            if (roomObjectNames != null)
+            {
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 5 QWEN click area",
+                    new Vector2(10.9f, -5.25f), new Vector2(.9f, 1.35f),
+                    "QWEN", Vector3.up * .75f);
+
+                Transform qwenDesk = root.Find("Floor 2 room 5 control desk body");
+                Collider2D qwenDeskCollider = qwenDesk != null ? qwenDesk.GetComponent<Collider2D>() : null;
+                if (qwenDeskCollider != null)
+                    roomObjectNames.Register(qwenDeskCollider, "QWEN'in Masası",
+                        qwenDesk.position + Vector3.up * 1.05f);
+
+                Transform securityDevice = root.Find("Floor 2 room 5 cable trunk");
+                Collider2D securityDeviceCollider = securityDevice != null ? securityDevice.GetComponent<Collider2D>() : null;
+                if (securityDeviceCollider != null)
+                    roomObjectNames.Register(securityDeviceCollider, "Güvenlik Cihazı",
+                        securityDevice.position + Vector3.right * .85f);
+
+                Transform securityCabinet = root.Find("Floor 2 room 5 equipment cabinet");
+                Collider2D securityCabinetCollider = securityCabinet != null ? securityCabinet.GetComponent<Collider2D>() : null;
+                if (securityCabinetCollider != null)
+                    roomObjectNames.Register(securityCabinetCollider, "Güvenlik Dolabı",
+                        securityCabinet.position + Vector3.up * 1.05f);
+            }
             // Preserve the existing connection between the first-floor gate and second-floor arrival.
             RectPiece(
                 "Security gate connector floor",
@@ -1358,6 +1784,21 @@ namespace Woken.Gameplay
             if (modifier != null)
                 modifier.ignoreFromBuild = true;
             piece.rotation = Quaternion.Euler(0f, 0f, rotation);
+        }
+
+        private void RegisterSecondFloorClickLabel(WorldObjectNameUI nameUI, string objectName,
+            Vector2 localCenter, Vector2 size, string displayName, Vector3 bubbleOffset)
+        {
+            GameObject clickTarget = new GameObject(objectName);
+            clickTarget.transform.SetParent(secondFloorRoot, false);
+            clickTarget.transform.position = new Vector3(
+                localCenter.x + SecondFloorOffsetX, localCenter.y, 0f);
+            BoxCollider2D clickArea = clickTarget.AddComponent<BoxCollider2D>();
+            clickArea.isTrigger = true;
+            clickArea.size = size;
+            NavMeshModifier modifier = clickTarget.AddComponent<NavMeshModifier>();
+            modifier.ignoreFromBuild = true;
+            nameUI.Register(clickArea, displayName, clickTarget.transform.position + bubbleOffset);
         }
 
         private void RegisterRoomObjectName(
@@ -2030,6 +2471,75 @@ namespace Woken.Gameplay
                 navMeshModifier.area = NavMesh.GetAreaFromName("Not Walkable");
                 piece.AddComponent<BoxCollider2D>();
             }
+        }
+
+        private void AddRoundButton(string colorName, Vector2 position, float diameter,
+            Color color, Transform parent, bool blocksPath = false)
+        {
+            CreateRoundButtonLayer("Floor 2 room 3 button shadow " + colorName,
+                position + new Vector2(0f, -.025f), diameter + .07f,
+                new Color32(35, 45, 48, 255), 4, parent, false);
+            CreateRoundButtonLayer("Floor 2 room 3 button " + colorName,
+                position, diameter, color, 5, parent, blocksPath);
+            CreateRoundButtonLayer("Floor 2 room 3 button shine " + colorName,
+                position + new Vector2(-diameter * .2f, diameter * .18f),
+                diameter * .18f, new Color32(244, 244, 225, 235), 6, parent, false);
+        }
+
+        private void CreateRoundButtonLayer(string objectName, Vector2 center, float diameter,
+            Color color, int sorting, Transform parent, bool blocksPath)
+        {
+            if (parent != null && secondFloorRoot != null
+                && (parent == secondFloorRoot || parent.IsChildOf(secondFloorRoot)))
+                center.x += SecondFloorOffsetX;
+
+            GameObject button = new GameObject(objectName);
+            button.transform.position = new Vector3(center.x, center.y, 0f);
+            button.transform.localScale = new Vector3(diameter, diameter, 1f);
+            button.transform.SetParent(parent, true);
+
+            SpriteRenderer renderer = button.AddComponent<SpriteRenderer>();
+            renderer.sprite = GetButtonCircleSprite();
+            renderer.color = color;
+            renderer.sortingOrder = sorting;
+
+            NavMeshModifier modifier = button.AddComponent<NavMeshModifier>();
+            modifier.ignoreFromBuild = !blocksPath;
+            if (blocksPath)
+            {
+                modifier.overrideArea = true;
+                modifier.area = NavMesh.GetAreaFromName("Not Walkable");
+                button.AddComponent<CircleCollider2D>();
+            }
+        }
+
+        private static Sprite GetButtonCircleSprite()
+        {
+            if (buttonCircleSprite != null)
+                return buttonCircleSprite;
+
+            const int size = 32;
+            const float radius = 15f;
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "Workbench round button sprite"
+            };
+
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x + .5f - size * .5f;
+                float dy = y + .5f - size * .5f;
+                float alpha = Mathf.Clamp01(radius + .5f - Mathf.Sqrt(dx * dx + dy * dy));
+                texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+
+            texture.Apply(false, true);
+            buttonCircleSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(.5f, .5f), size, 0, SpriteMeshType.FullRect);
+            return buttonCircleSprite;
         }
 
         private static Sprite GetPixel()

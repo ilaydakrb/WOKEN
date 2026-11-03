@@ -64,7 +64,7 @@ namespace Woken.UI
         private bool secondFloorCabinetHelpShown;
         private bool robotTaskSucceeded;
         private bool room3DoorHintShown;
-        private bool room3DoorAttemptPromptShown;
+        private float room3PassageNearSince = -1f;
         private bool room3DoorOpened;
         private Coroutine room3DoorRoutine;
 
@@ -162,9 +162,9 @@ namespace Woken.UI
         {
             introPanel.gameObject.SetActive(true);
             dialogueText.text = OpeningMessage;
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(3f);
             dialogueText.text = DepartureMessage;
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(3f);
             introPanel.gameObject.SetActive(false);
             introRoutine = null;
             StartElevatorRoute();
@@ -212,8 +212,8 @@ namespace Woken.UI
             if (canvas != null && !canvas.gameObject.activeSelf)
                 canvas.gameObject.SetActive(true);
             HidePopups();
-            bool longMessage = message.Length > 70;
-            statusPanel.sizeDelta = longMessage ? new Vector2(760f, 190f) : new Vector2(420f, 122f);
+            bool longMessage = message.Length > 45;
+            statusPanel.sizeDelta = longMessage ? new Vector2(680f, 150f) : new Vector2(420f, 122f);
             statusText.fontSize = longMessage ? 24 : 27;
             statusText.text = message;
             statusPanel.gameObject.SetActive(true);
@@ -225,6 +225,18 @@ namespace Woken.UI
             }
         }
 
+        private void ShowStatusTemporarily(string message, float duration)
+        {
+            ShowStatus(message);
+            StartCoroutine(HideStatusMessageAfterDelay(message, duration));
+        }
+
+        private IEnumerator HideStatusMessageAfterDelay(string message, float duration)
+        {
+            yield return new WaitForSeconds(duration);
+            if (statusPanel != null && statusPanel.gameObject.activeSelf && statusText.text == message)
+                statusPanel.gameObject.SetActive(false);
+        }
         private IEnumerator CloseStatusAfterDelay(float displayDuration)
         {
             yield return new WaitForSeconds(displayDuration);
@@ -365,52 +377,69 @@ namespace Woken.UI
                 && Vector2.Distance(player.position, doorFront) <= 1.2f)
             {
                 room3DoorHintShown = true;
-                ShowStatus("Yandaki güç düğmesi bu kapıyı açıyor olmalı.");
+                ShowStatusTemporarily("Şurada bir buton var sanırım, kapı butona basılınca açılıyor.", 2f);
             }
 
             if (!room3DoorHintShown)
                 return;
 
-            bool nearYellowMarks = Vector2.Distance(player.position, robotOnlyPassageTrigger.position) <= 1.05f
-                && player.position.x < robotOnlyPassageTrigger.position.x + .2f;
+            Vector2 passage = robotOnlyPassageTrigger.position;
+            bool nearYellowMarks = Vector2.Distance(player.position, passage) <= 1.05f
+                && player.position.x < passage.x + .2f;
             if (!nearYellowMarks)
             {
-                if (room3DoorAttemptPromptShown)
-                {
-                    room3DoorAttemptPromptShown = false;
-                    HidePopups();
-                }
+                if (room3PassageNearSince >= 0f
+                    && Time.unscaledTime - room3PassageNearSince >= 2f)
+                    room3DoorRoutine = StartCoroutine(RobotOpensRoom2Door());
                 return;
             }
 
-            if (!room3DoorAttemptPromptShown)
+            if (room3PassageNearSince < 0f)
             {
-                room3DoorAttemptPromptShown = true;
-                ShowStatus("F ile sarı çizgili geçişi dene.");
+                room3PassageNearSince = Time.unscaledTime;
+                // Let the player try the opening without the robot following close behind.
+                movement.HoldPosition();
             }
 
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.fKey.wasPressedThisFrame)
-            {
-                room3DoorAttemptPromptShown = false;
+            if (Time.unscaledTime - room3PassageNearSince >= 2f)
                 room3DoorRoutine = StartCoroutine(RobotOpensRoom2Door());
-            }
         }
-
         private IEnumerator RobotOpensRoom2Door()
         {
-            ShowStatus("Bir de ben deneyeyim.");
-            yield return new WaitForSeconds(1.1f);
+            ShowStatus("Burası senin için fazla dar, bekle bir de ben deneyeyim.");
+            yield return new WaitForSeconds(1f);
 
-            Vector2 buttonApproach = (Vector2)room3PowerButton.position + Vector2.left * .58f;
-            yield return StartCoroutine(MoveRobotForCabinetTask(buttonApproach));
+            Vector2 passage = robotOnlyPassageTrigger.position;
+
+            while (player != null && Vector2.Distance(player.position, passage) <= 1.2f
+                && player.position.x >= passage.x - .55f)
+                yield return null;
+            Vector2 passageWest = passage + Vector2.left * 1.15f;
+            Vector2 passageWestStaging = passageWest + Vector2.up * 1.05f;
+            yield return StartCoroutine(MoveRobotForCabinetTask(passageWestStaging));
             if (!robotTaskSucceeded)
             {
-                yield return StartCoroutine(FinishDoorTaskWithFailure("Güç düğmesine ulaşamıyorum."));
+                yield return StartCoroutine(FinishDoorTaskWithFailure("Geçidin önüne ulaşamıyorum."));
                 yield break;
             }
 
+            // NavMesh clearance is too narrow for the service slot, so guide the robot through it directly.
             movement.HoldPosition();
+            movement.enabled = false;
+            if (robotAgent != null && robotAgent.enabled)
+                robotAgent.enabled = false;
+            if (robotCollider != null)
+                robotCollider.enabled = false;
+
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, passageWest, .55f, false));
+            Vector2 passageEast = passage + Vector2.right * .62f;
+            Vector2 buttonApproach = (Vector2)room3PowerButton.position + Vector2.left * .58f;
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, passageEast, .8f, false));
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, buttonApproach, .72f, false));
+
             SpriteRenderer buttonRenderer = room3PowerButton.GetComponent<SpriteRenderer>();
             Vector3 buttonScale = room3PowerButton.localScale;
             room3PowerButton.localScale = buttonScale * .72f;
@@ -419,7 +448,7 @@ namespace Woken.UI
             yield return new WaitForSeconds(.22f);
             room3PowerButton.localScale = buttonScale;
 
-            yield return new WaitForSeconds(2f);
+            // The door opens as soon as the robot presses the button.
             Vector3 westStart = room3DoorWest.position;
             Vector3 eastStart = room3DoorEast.position;
             Vector3 westOpen = westStart + Vector3.left * .72f;
@@ -445,18 +474,39 @@ namespace Woken.UI
             Physics2D.SyncTransforms();
             if (refreshNavigation != null) refreshNavigation();
             room3DoorOpened = true;
-            HidePopups();
+
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, passageEast, .72f, false));
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, passageWest, .8f, false));
+            Vector2 playerSideReturnPoint = (Vector2)player.position + Vector2.left * .85f + Vector2.up * .8f;
+            yield return StartCoroutine(AnimateActorSegment(
+                robot, robotBody, robotAnimator, robotOriginalScale, playerSideReturnPoint, .7f, false));
+
+            Physics2D.SyncTransforms();
+            if (robotCollider != null)
+                robotCollider.enabled = true;
+            if (robotAgent != null)
+            {
+                robotAgent.enabled = true;
+                robotAgent.Warp(robotBody.position);
+            }
+            movement.enabled = true;
             movement.ResumeFollowingPlayer();
+            HidePopups();
             room3DoorRoutine = null;
         }
-
         private IEnumerator FinishDoorTaskWithFailure(string message)
         {
-            ShowStatus(message, true, 3f);
+            ShowStatus(message);
             yield return new WaitForSeconds(3f);
+            HidePopups();
+            if (playerController != null)
+                playerController.enabled = true;
+            if (movement != null)
+                movement.ResumeFollowingPlayer();
             room3DoorRoutine = null;
         }
-
         private IEnumerator MoveEntryStepToCabinet()
         {
             if (canvas != null && !canvas.gameObject.activeSelf)
@@ -597,7 +647,7 @@ namespace Woken.UI
             Vector2 cabinetFarEdge = new Vector2(cabinetBounds.max.x - .18f, laneY);
             yield return StartCoroutine(AnimateActorSegment(
                 robot, robotBody, robotAnimator, robotOriginalScale, cabinetFarEdge, 1.05f, false));
-            Vector2 robotLandingPoint = new Vector2(cabinetBounds.max.x + .08f, laneY - .45f);
+            Vector2 robotLandingPoint = new Vector2(cabinetBounds.max.x + .75f, laneY - .45f);
             yield return StartCoroutine(AnimateActorSegment(
                 robot, robotBody, robotAnimator, robotOriginalScale, robotLandingPoint, .68f, true));
             Physics2D.SyncTransforms();

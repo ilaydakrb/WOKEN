@@ -123,7 +123,7 @@ namespace Woken.UI
         private bool TryPickUp(Transform target, Transform[] visuals, RepairMaterial material)
         {
             if (target == null || !target.gameObject.activeInHierarchy
-                || Vector2.Distance(player.position, target.position) > InteractionDistance)
+                || !IsNearMaterialTable())
                 return false;
 
             heldMaterial = material;
@@ -187,7 +187,7 @@ namespace Woken.UI
         private void UpdatePrompt()
         {
             bool nearAnyMaterial = heldMaterial == RepairMaterial.None
-                && (IsNearAvailable(wrenchTarget) || IsNearAvailable(pliersTarget) || IsNearAvailable(sparePartsTarget));
+                && !replacementInstalled && IsNearMaterialTable();
             string message = null;
             Vector3 position = Vector3.zero;
             float duration = 1.3f;
@@ -232,10 +232,10 @@ namespace Woken.UI
                 promptRect.anchoredPosition = localPoint;
         }
 
-        private bool IsNearAvailable(Transform target)
+        private bool IsNearMaterialTable()
         {
-            return target != null && target.gameObject.activeInHierarchy
-                && Vector2.Distance(player.position, target.position) <= InteractionDistance;
+            return materialTable != null
+                && Vector2.Distance(player.position, materialTable.position) <= InteractionDistance;
         }
 
         private void BuildUI()

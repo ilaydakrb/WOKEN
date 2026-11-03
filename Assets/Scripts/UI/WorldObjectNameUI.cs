@@ -56,6 +56,11 @@ namespace Woken.UI
 
         public void ShowMessage(string message, Vector3 position, float duration = 2f)
         {
+            ShowMessage(message, position, duration, new Vector2(240f, 76f));
+        }
+
+        public void ShowMessage(string message, Vector3 position, float duration, Vector2 bubbleSize)
+        {
             if (worldCamera == null || bubbleRect == null || label == null)
                 return;
 
@@ -70,6 +75,7 @@ namespace Woken.UI
 
             clickSequence++;
             label.text = message;
+            bubbleRect.sizeDelta = bubbleSize;
             bubbleRect.anchoredPosition = localPoint;
             hideAtTime = Time.unscaledTime + duration;
             bubbleRect.gameObject.SetActive(true);
@@ -95,6 +101,7 @@ namespace Woken.UI
                 if (target.Collider == null || !target.Collider.OverlapPoint(worldPoint))
                     continue;
 
+                bubbleRect.sizeDelta = new Vector2(240f, 76f);
                 label.text = target.Name;
                 Vector3 screenPoint = worldCamera.WorldToScreenPoint(target.BubblePosition);
                 Vector2 localPoint;

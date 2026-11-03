@@ -14,7 +14,7 @@ namespace Woken.Gameplay
         private const float RevealRadius = 2.4f;
         private Tilemap fog;
         private Transform player;
-        private bool[,] explored;
+        private bool[,] explored = new bool[Columns, Rows];
         private Vector2Int lastCell = new Vector2Int(-999, -999);
 
         private void Start()
@@ -42,7 +42,8 @@ namespace Woken.Gameplay
 
         private void Update()
         {
-            if (player == null || fog == null) return;
+            if (player == null || fog == null || explored == null
+                || !fog.gameObject.activeInHierarchy) return;
             Vector2Int center = CellAt(player.position);
             if (center == lastCell) return;
             lastCell = center;

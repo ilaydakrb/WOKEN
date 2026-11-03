@@ -28,11 +28,11 @@ namespace Woken.UI
         private static readonly Color FolderColor = new Color32(247, 174, 77, 255);
         private static readonly Color PaperColor = new Color32(247, 248, 244, 255);
 
-        private readonly string[] reportNames = { "LUCI.4", "LUCI.1", "LUCI.3", "LUCI.4" };
+        private readonly string[] reportNames = { "QWEN.4", "QWEN.1", "QWEN.3", "QWEN.4" };
         private readonly string[] reportText =
         {
             "KOL AKTÜATÖRÜ / KALİBRASYON\nSonuç: ONAYLANDI.\n\nTutucu kolun yeni denge ayarı laboratuvar kapısındaki eski yedek kilitle eşleşti. Rapor etiketini değiştirmeyin; arşiv sırası korunmalı.",
-            "OPTİK SENSÖR / HİZALAMA\nSonuç: ONAYLANDI.\n\nLuci, kuzey tezgâhındaki ışık ölçümünü yeniden yaptı. Tek numaralı profil, giriş panelindeki ilk kontağı doğru okudu.",
+            "OPTİK SENSÖR / HİZALAMA\nSonuç: ONAYLANDI.\n\nQWEN, kuzey tezgâhındaki ışık ölçümünü yeniden yaptı. Tek numaralı profil, giriş panelindeki ilk kontağı doğru okudu.",
             "GÜÇ HATTI / KARARLILIK\nSonuç: ONAYLANDI.\n\nÜçüncü deney konfigürasyonunda enerji aktarımı kesintisiz kaldı. Eski notta, yedek kilit dizisinin deney kayıtlarından üretildiği yazıyor.",
             "SON DOĞRULAMA / TUTUCU KOL\nSonuç: ONAYLANDI.\n\nAynı kol kalibrasyonu son kontrolde yeniden kabul edildi. Kayıt tekrarını atlamayın; kilit yedeği raporların görünen sırasını izliyor."
         };
@@ -174,14 +174,14 @@ namespace Woken.UI
         private void ShowHome()
         {
             ClearContent();
-            pathText.text = "Arşiv / Klasörler";
+            pathText.text = "Arşiv / Dosyalar";
             CreateText("Folder hint", contentRoot,
-                "Laboratuvar dosyaları — klasörleri incele", 20, Ink,
+                "Laboratuvar dosyaları — açmak için bir dosya seç", 24, Ink,
                 new Vector2(0f, 185f), new Vector2(800f, 42f), TextAnchor.MiddleLeft);
 
-            CreateFolderCard("Deney Robotları", new Vector2(-270f, 48f), ShowRobotFolder);
-            CreateFolderCard("Güvenlik Protokolü", new Vector2(0f, 48f), ShowProtocol);
-            CreateFolderCard("Laboratuvar Notları", new Vector2(270f, 48f), ShowNotes);
+            CreateFileCard("Deney Robotları", new Vector2(-270f, 48f), ShowRobotFolder);
+            CreateFileCard("Şifre", new Vector2(0f, 48f), ShowProtocol);
+            CreateFileCard("Laboratuvar Notları", new Vector2(270f, 48f), ShowNotes);
 
             CreateText("Archive footer", contentRoot,
                 "Son eşitleme: 03:17  •  Yerel kullanıcı: LAB-07", 15,
@@ -198,7 +198,7 @@ namespace Woken.UI
                 "Deney Robotları", 23, Ink,
                 new Vector2(20f, 170f), new Vector2(700f, 42f), TextAnchor.MiddleLeft);
             CreateNoteCard("Deney arşivi notu", contentRoot,
-                "Depo kilidinin yedeği, onaylı LUCI deney raporlarından oluşturuldu. Raporları bu klasörde göründükleri sırayla incele; dosya etiketleri deney kimliğini taşır. Kişisel notlar ve reddedilen taslaklar kilit dizisine dahil değildir.",
+                "Depo kilidinin yedeği, onaylı QWEN deney raporlarından oluşturuldu. Raporları bu klasörde göründükleri sırayla incele; dosya etiketleri deney kimliğini taşır. Kişisel notlar ve reddedilen taslaklar kilit dizisine dahil değildir.",
                 new Vector2(0f, 105f), new Vector2(790f, 90f));
 
             for (int i = 0; i < reportNames.Length; i++)
@@ -222,10 +222,10 @@ namespace Woken.UI
         private void ShowProtocol()
         {
             ClearContent();
-            pathText.text = "Arşiv / Güvenlik Protokolü";
+            pathText.text = "Arşiv / Şifre";
             CreateBackButton(ShowHome);
-            CreateDocumentView("Kilit yedeği - bakım notu",
-                "Depo kapısı yenilendiğinde eski anahtar kaydı silinmiş. Yedek erişim, başarılı LUCI deneylerinin etiket numaralarından yeniden kurulabiliyor.\n\nİşlem sırası önemlidir: Deney Robotları klasöründeki onaylı raporları yukarıdan aşağıya oku. Her dosya için LUCI adından sonraki numarayı kaydet. Rapor içerikleri, hangi denemelerin onaylandığını doğrulamak için tutuluyor.\n\nNot: Bu ekranda tam giriş kodu saklanmıyor; kodu rapor sırasından çıkarman gerekiyor.");
+            CreateDocumentView("Depo kapısı — kayıtlı şifreler",
+                "Bakım ekibinin kurtardığı erişim kayıtları:\n\n0186     7720     4134     2905\n6401     8352     1068     5519\n\nDepo kapısının aktif şifresi: 4134\n\nDiğer numaralar eski deneme kodlarıdır.");
         }
 
         private void ShowNotes()
@@ -234,7 +234,7 @@ namespace Woken.UI
             pathText.text = "Arşiv / Laboratuvar Notları";
             CreateBackButton(ShowHome);
             CreateDocumentView("Vardiya günlüğü",
-                "Gece vardiyası notu:\n\nKuzey tezgâhındaki eski laptop hâlâ açılıyor. Depo kapısının kontrol paneli bağlantısız kaldı. LUCI test raporlarını silmeyin; bakım ekibi yedek anahtarı bu kayıtlardan oluşturmuştu.\n\nKahve makinesi yine çalışmıyor. Numune teslimi sabah vardiyasına bırakıldı.");
+                "Gece vardiyası notu:\n\nKuzey tezgâhındaki eski laptop hâlâ açılıyor. Depo kapısının kontrol paneli bağlantısız kaldı. QWEN test raporlarını silmeyin; bakım ekibi yedek anahtarı bu kayıtlardan oluşturmuştu.\n\nKahve makinesi yine çalışmıyor. Numune teslimi sabah vardiyasına bırakıldı.");
         }
 
         private void CreateFolderCard(string label, Vector2 position, Action onClick)
@@ -260,21 +260,21 @@ namespace Woken.UI
         private void CreateFileCard(string label, Vector2 position, Action onClick)
         {
             Button card = CreateCard("File " + label, contentRoot,
-                new Vector2(340f, 98f), position, onClick);
+                new Vector2(250f, 210f), position, onClick);
             Image page = CreateImage("Document icon", card.transform,
-                new Vector2(44f, 58f), new Vector2(-130f, 0f), PaperColor);
+                new Vector2(64f, 82f), new Vector2(0f, 38f), PaperColor);
             page.raycastTarget = false;
             Outline outline = page.gameObject.AddComponent<Outline>();
             outline.effectColor = Ink;
             outline.effectDistance = new Vector2(2f, -2f);
             Image line1 = CreateImage("Document line", page.transform,
-                new Vector2(26f, 3f), new Vector2(0f, 8f), new Color32(105, 139, 157, 255));
+                new Vector2(38f, 4f), new Vector2(0f, 12f), new Color32(105, 139, 157, 255));
             line1.raycastTarget = false;
             Image line2 = CreateImage("Document line", page.transform,
-                new Vector2(26f, 3f), new Vector2(0f, -2f), new Color32(105, 139, 157, 255));
+                new Vector2(38f, 4f), new Vector2(0f, 0f), new Color32(105, 139, 157, 255));
             line2.raycastTarget = false;
-            CreateText("Document label", card.transform, label, 18, Ink,
-                new Vector2(43f, 0f), new Vector2(220f, 48f), TextAnchor.MiddleLeft);
+            CreateText("Document label", card.transform, label, 24, Ink,
+                new Vector2(0f, -68f), new Vector2(235f, 56f), TextAnchor.MiddleCenter);
         }
 
         private void CreateDocumentView(string title, string body)
@@ -286,7 +286,7 @@ namespace Woken.UI
             Outline outline = paper.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color32(148, 160, 160, 255);
             outline.effectDistance = new Vector2(1f, -1f);
-            CreateText("Document contents", paper.transform, body, 19, new Color32(35, 44, 48, 255),
+            CreateText("Document contents", paper.transform, body, 23, new Color32(35, 44, 48, 255),
                 new Vector2(0f, 0f), new Vector2(730f, 290f), TextAnchor.UpperLeft);
         }
 
