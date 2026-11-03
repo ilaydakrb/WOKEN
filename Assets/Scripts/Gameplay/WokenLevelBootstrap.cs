@@ -16,6 +16,10 @@ namespace Woken.Gameplay
     public sealed class WokenLevelBootstrap : MonoBehaviour
     {
         private static Sprite pixel;
+        private const float SecondFloorOffsetX = 32f;
+
+        // Temporary testing switch: set false to restore the battery requirement.
+        private const bool BypassElevatorBatteryForFloorTesting = true;
 
         private Transform player;
         private Transform robot;
@@ -23,8 +27,6 @@ namespace Woken.Gameplay
         private Transform secondFloorRoot;
         private Transform firstFloorNorthDoor;
         private Transform firstFloorSouthDoor;
-        private Transform secondFloorNorthDoor;
-        private Transform secondFloorSouthDoor;
         private Rigidbody2D playerBody;
         private Rigidbody2D robotBody;
         private PlayerWASDController playerController;
@@ -147,10 +149,11 @@ namespace Woken.Gameplay
                 && Mathf.Abs(player.position.y + 4f) <= 0.5f;
             bool facingElevator = lastPlayerFacing.x > 0.7f
                 && Mathf.Abs(lastPlayerFacing.y) < 0.7f;
-            bool batteryReady = batteryBayInteraction != null && batteryBayInteraction.BatteryInstalled;
+            bool batteryReady = BypassElevatorBatteryForFloorTesting
+                || batteryBayInteraction != null && batteryBayInteraction.BatteryInstalled;
             bool canInteract = activeFloor == 1 && !elevatorTransitioning
                 && playerController != null && closeEnough && facingElevator && batteryReady
-                && !batteryBayInteraction.IsNearBatteryBay;
+                && (batteryBayInteraction == null || !batteryBayInteraction.IsNearBatteryBay);
             UpdateElevatorPrompt(canInteract);
 
             if (activeFloor != 1 || elevatorTransitioning || playerController == null)
@@ -163,7 +166,8 @@ namespace Woken.Gameplay
             if (!closeEnough || !facingElevator || batteryBayInteraction != null && batteryBayInteraction.IsNearBatteryBay)
                 return;
 
-            if (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled)
+            if (!BypassElevatorBatteryForFloorTesting
+                && (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled))
             {
                 if (worldObjectNameUI != null)
                     worldObjectNameUI.ShowMessage(
@@ -173,12 +177,13 @@ namespace Woken.Gameplay
                 return;
             }
 
-            StartCoroutine(UseElevator());
+            StartCoroutine(CrossSecurityGate());
         }
 
         private void UpdateElevatorPanelProximityMessage()
         {
             bool isNearPanel = activeFloor == 1 && !elevatorTransitioning
+                && !BypassElevatorBatteryForFloorTesting
                 && elevatorServicePanel != null
                 && batteryBayInteraction != null && !batteryBayInteraction.BatteryInstalled
                 && Vector2.Distance(player.position, elevatorServicePanel.position) <= 1.35f;
@@ -243,7 +248,7 @@ namespace Woken.Gameplay
             textRect.offsetMax = new Vector2(-8f, -5f);
             Text label = textObject.GetComponent<Text>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.text = "Asansöre binmek için F’ye tıklayınız.";
+            label.text = "Güvenlik kapısını açmak için F’ye bas.";
             label.fontSize = 22;
             label.fontStyle = FontStyle.Bold;
             label.color = new Color32(20, 20, 20, 255);
@@ -309,35 +314,36 @@ namespace Woken.Gameplay
             sprite.name = "Elevator instruction bubble sprite";
             return sprite;
         }
-        private IEnumerator UseElevator()
+        private IEnumerator CrossSecurityGate()
         {
-            if (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled)
+            if (!BypassElevatorBatteryForFloorTesting
+                && (batteryBayInteraction == null || !batteryBayInteraction.BatteryInstalled))
                 yield break;
 
             if (elevatorPrompt != null) elevatorPrompt.SetActive(false);
             elevatorTransitioning = true;
             playerController.enabled = false;
             if (robotController != null)
+            {
+                robotController.ResumeFollowingPlayer();
                 robotController.enabled = false;
+            }
+
+            NavMeshAgent robotAgent = robot != null
+                ? robot.GetComponent<NavMeshAgent>()
+                : null;
+            if (robotAgent != null && robotAgent.enabled)
+            {
+                if (robotAgent.isOnNavMesh)
+                {
+                    robotAgent.isStopped = true;
+                    robotAgent.ResetPath();
+                }
+                robotAgent.enabled = false;
+            }
 
             yield return StartCoroutine(AnimateElevatorDoors(
                 firstFloorNorthDoor, firstFloorSouthDoor, true, 0.9f));
-
-            Coroutine playerBoarding = StartCoroutine(MoveActorTo(
-                playerBody, playerAnimator, new Vector2(15.15f, -4f), 3.3f));
-            Coroutine robotBoarding = StartCoroutine(MoveActorTo(
-                robotBody, robotAnimator, new Vector2(14.55f, -4f), 3.3f));
-            yield return playerBoarding;
-            yield return robotBoarding;
-
-            yield return StartCoroutine(AnimateElevatorDoors(
-                firstFloorNorthDoor, firstFloorSouthDoor, false, 0.8f));
-            yield return new WaitForSeconds(0.35f);
-
-            firstFloorRoot.gameObject.SetActive(false);
-            secondFloorRoot.gameObject.SetActive(true);
-            Physics2D.SyncTransforms();
-            activeFloor = 2;
 
             GameObject fog = GameObject.Find("Unexplored areas");
             if (fog != null)
@@ -347,19 +353,24 @@ namespace Woken.Gameplay
             if (routeCanvas != null)
                 routeCanvas.SetActive(false);
 
+            Coroutine playerCrossing = StartCoroutine(MoveActorTo(
+                playerBody, playerAnimator, new Vector2(19.25f, -4f), 3.3f));
+            Coroutine robotCrossing = StartCoroutine(MoveActorTo(
+                robotBody, robotAnimator, new Vector2(18.45f, -4f), 3.3f));
+            yield return playerCrossing;
+            yield return robotCrossing;
+
             yield return StartCoroutine(AnimateElevatorDoors(
-                secondFloorNorthDoor, secondFloorSouthDoor, true, 0.9f));
+                firstFloorNorthDoor, firstFloorSouthDoor, false, 0.8f));
+            activeFloor = 2;
+            Physics2D.SyncTransforms();
 
-            Coroutine playerExiting = StartCoroutine(MoveActorTo(
-                playerBody, playerAnimator, new Vector2(13.15f, -4f), 3.3f));
-            Coroutine robotExiting = StartCoroutine(MoveActorTo(
-                robotBody, robotAnimator, new Vector2(12.6f, -4f), 3.3f));
-            yield return playerExiting;
-            yield return robotExiting;
-
-            NavMeshAgent robotAgent = robot.GetComponent<NavMeshAgent>();
-            if (robotAgent != null && robotAgent.enabled)
-                robotAgent.Warp(robotBody.position);
+            if (robotAgent != null)
+            {
+                robotAgent.enabled = true;
+                if (!robotAgent.Warp(robotBody.position))
+                    Debug.LogWarning("Robot could not attach to the continuous NavMesh after crossing the security gate.");
+            }
             robotController.ResumeFollowingPlayer();
 
             playerController.enabled = true;
@@ -484,62 +495,150 @@ namespace Woken.Gameplay
 
         private void BuildSecondFloorStage()
         {
-            // Same footprint and coordinates as floor one; kept inactive until floor switching is implemented.
-            var secondFloor = new GameObject("Second Floor - staged (inactive)");
-            secondFloor.SetActive(false);
+            // Keep the measured 28 x 16 second-floor footprint and replace its former
+            // internal layout with five simple rooms. Root offset is +32 on X.
+            var secondFloor = new GameObject("Second Floor - east wing");
             Transform root = secondFloor.transform;
             secondFloorRoot = root;
 
-            RectPiece("Floor 2 - entrance", new Vector2(-10, 0), new Vector2(8, 16), new Color32(191, 190, 178, 255), -10, false, root);
-            RectPiece("Floor 2 - route hall", new Vector2(0, 0), new Vector2(12, 16), new Color32(166, 174, 173, 255), -10, false, root);
-            RectPiece("Floor 2 - storage", new Vector2(10, 4), new Vector2(8, 8), new Color32(185, 178, 158, 255), -10, false, root);
-            RectPiece("Floor 2 - maintenance", new Vector2(10, -4), new Vector2(8, 8), new Color32(151, 164, 165, 255), -10, false, root);
-            for (int x = -13; x <= 13; x++)
-                for (int y = -7; y <= 7; y++)
-                    if ((x + y) % 2 == 0)
-                        RectPiece("Floor 2 tile", new Vector2(x, y), Vector2.one, new Color(1f, 1f, 1f, .035f), -9, false, root);
+            Color black = new Color32(0, 0, 0, 255);
+            Color floor = new Color32(164, 171, 168, 255);
+            Color wall = new Color32(48, 59, 63, 255);
+            Color wallFace = new Color32(76, 88, 91, 255);
+            Color wallTrim = new Color32(117, 130, 132, 255);
 
-            // Elevator copy matches floor one's position, size, style, and closed-door colliders.
-            Color steel = new Color32(119, 132, 135, 255);
-            Color lightSteel = new Color32(165, 175, 175, 255);
-            Color dark = new Color32(49, 60, 64, 255);
-            RectPiece("Floor 2 - elevator wall mounted faceplate", new Vector2(13.82f, -4f), new Vector2(.25f, 2f), steel, 1, false, root);
-            RectPiece("Floor 2 - elevator jamb north", new Vector2(13.78f, -2.95f), new Vector2(.42f, .12f), lightSteel, 3, true, root);
-            RectPiece("Floor 2 - elevator jamb south", new Vector2(13.78f, -5.05f), new Vector2(.42f, .12f), lightSteel, 3, true, root);
-            RectPiece("Floor 2 - elevator door leaf north", new Vector2(13.86f, -3.5f), new Vector2(.3f, .94f), new Color32(113, 126, 130, 255), 4, true, root);
-            RectPiece("Floor 2 - elevator door leaf south", new Vector2(13.86f, -4.5f), new Vector2(.3f, .94f), new Color32(128, 140, 143, 255), 4, true, root);
-            RectPiece("Floor 2 - elevator door inset north", new Vector2(13.84f, -3.5f), new Vector2(.045f, .78f), new Color32(82, 94, 98, 255), 5, false, root.Find("Floor 2 - elevator door leaf north"));
-            RectPiece("Floor 2 - elevator door inset south", new Vector2(13.84f, -4.5f), new Vector2(.045f, .78f), new Color32(94, 106, 109, 255), 5, false, root.Find("Floor 2 - elevator door leaf south"));
-            RectPiece("Floor 2 - elevator seam north", new Vector2(13.86f, -3.97f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, root.Find("Floor 2 - elevator door leaf north"));
-            RectPiece("Floor 2 - elevator seam south", new Vector2(13.86f, -4.03f), new Vector2(.18f, .035f), new Color32(38, 47, 51, 255), 6, false, root.Find("Floor 2 - elevator door leaf south"));
-            RectPiece("Floor 2 - elevator top indicator housing", new Vector2(13.78f, -2.78f), new Vector2(.3f, .18f), dark, 3, true, root);
-            RectPiece("Floor 2 - elevator top indicator", new Vector2(13.77f, -2.78f), new Vector2(.12f, .07f), new Color32(99, 190, 171, 255), 4, false, root);
-            RectPiece("Floor 2 - elevator warning strip north", new Vector2(13.68f, -3.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root.Find("Floor 2 - elevator door leaf north"));
-            RectPiece("Floor 2 - elevator warning strip south", new Vector2(13.68f, -4.5f), new Vector2(.045f, .72f), new Color32(202, 177, 106, 255), 4, false, root.Find("Floor 2 - elevator door leaf south"));
-            RectPiece("Floor 2 - elevator threshold", new Vector2(13.52f, -4f), new Vector2(.1f, 1.9f), lightSteel, 2, false, root);
+            RectPiece("Floor 2 black exterior", Vector2.zero,
+                new Vector2(36f, 22f), black, -20, false, root);
+            RectPiece("Floor 2 five-room floor", Vector2.zero,
+                new Vector2(28f, 16f), floor, -11, false, root);
 
-            BuildElevatorCabin(root, "Floor 2 - elevator cabin");
-            secondFloorNorthDoor = root.Find("Floor 2 - elevator door leaf north");
-            secondFloorSouthDoor = root.Find("Floor 2 - elevator door leaf south");
+            // The west opening aligns with the elevator arrival; all other exterior edges stay closed.
+            RectPiece("Floor 2 west boundary upper", new Vector2(-14f, 2.6f),
+                new Vector2(.4f, 10.8f), wall, 0, true, root);
+            RectPiece("Floor 2 west boundary lower", new Vector2(-14f, -6.6f),
+                new Vector2(.4f, 2.8f), wall, 0, true, root);
+            RectPiece("Floor 2 north boundary", new Vector2(0f, 7.8f),
+                new Vector2(28.4f, .4f), wall, 0, true, root);
+            RectPiece("Floor 2 south boundary", new Vector2(0f, -7.8f),
+                new Vector2(28.4f, .4f), wall, 0, true, root);
+            RectPiece("Floor 2 east boundary", new Vector2(14f, 0f),
+                new Vector2(.4f, 16f), wall, 0, true, root);
+
+            // Room 1 is 1.5 times its original width (7.5 units). Door openings are all 1.4 units.
+            // Room 1 -> room 3: lower-right opening.
+            RectPiece("Floor 2 partition west upper", new Vector2(-6.5f, 2.45f),
+                new Vector2(.36f, 10.3f), wall, 1, true, root);
+            RectPiece("Floor 2 partition west lower", new Vector2(-6.5f, -5.95f),
+                new Vector2(.36f, 3.7f), wall, 1, true, root);
+
+            // Room 3 -> room 2: opening in their shared horizontal wall.
+            RectPiece("Floor 2 middle divider west", new Vector2(-3.6f, 0f),
+                new Vector2(5.8f, .36f), wall, 1, true, root);
+            RectPiece("Floor 2 middle divider east", new Vector2(2.85f, 0f),
+                new Vector2(4.3f, .36f), wall, 1, true, root);
+
+            // Room 2 -> room 4: upper opening in the central/east partition.
+            RectPiece("Floor 2 partition east upper", new Vector2(5f, 6.65f),
+                new Vector2(.36f, 2.3f), wall, 1, true, root);
+            RectPiece("Floor 2 partition east lower", new Vector2(5f, -1.85f),
+                new Vector2(.36f, 11.9f), wall, 1, true, root);
+
+            // Room 4 -> room 5: opening in their shared horizontal wall.
+            RectPiece("Floor 2 east divider left", new Vector2(6.9f, 0f),
+                new Vector2(3.8f, .36f), wall, 1, true, root);
+            RectPiece("Floor 2 east divider right", new Vector2(12.1f, 0f),
+                new Vector2(3.8f, .36f), wall, 1, true, root);
+            // Room 5 contains the final exit; the exit itself remains closed for now.
+            RectPiece("Floor 2 exit door", new Vector2(14f, -4.25f),
+                new Vector2(.4f, 2.5f), wallFace, 2, true, root);
+            RectPiece("Floor 2 exit door face", new Vector2(13.96f, -4.25f),
+                new Vector2(.08f, 2.1f), wallTrim, 3, false, root);
+            // Room 1: compact arrival lounge and coffee counter. Keep the elevator-to-room-3 route clear.
+            Color cabinet = new Color32(83, 94, 96, 255);
+            Color counter = new Color32(194, 197, 187, 255);
+            Color upholstery = new Color32(103, 116, 116, 255);
+            Color cushion = new Color32(150, 157, 150, 255);
+            Color wood = new Color32(117, 91, 68, 255);
+            Color leaf = new Color32(78, 112, 78, 255);
+
+            // Coffee counter along the north wall.
+            RectPiece("Floor 2 room 1 coffee counter body", new Vector2(-10.55f, 6.78f),
+                new Vector2(4.9f, .9f), cabinet, 0, true, root);
+            RectPiece("Floor 2 room 1 coffee counter top", new Vector2(-10.55f, 6.27f),
+                new Vector2(5.05f, .18f), counter, 1, false, root);
+            RectPiece("Floor 2 room 1 counter left cabinet", new Vector2(-12.25f, 6.75f),
+                new Vector2(1.35f, .72f), new Color32(105, 115, 114, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 counter right cabinet", new Vector2(-10.55f, 6.75f),
+                new Vector2(1.65f, .72f), new Color32(96, 108, 108, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 coffee machine base", new Vector2(-9.1f, 6.13f),
+                new Vector2(.62f, .34f), new Color32(49, 59, 61, 255), 3, false, root);
+            RectPiece("Floor 2 room 1 coffee machine", new Vector2(-9.1f, 6.42f),
+                new Vector2(.45f, .42f), new Color32(62, 72, 74, 255), 4, false, root);
+            RectPiece("Floor 2 room 1 coffee machine highlight", new Vector2(-9.1f, 6.48f),
+                new Vector2(.24f, .08f), new Color32(118, 160, 157, 255), 5, false, root);
+            RectPiece("Floor 2 room 1 cup tray", new Vector2(-11.45f, 6.13f),
+                new Vector2(.92f, .28f), new Color32(139, 130, 112, 255), 3, false, root);
+            for (int i = 0; i < 3; i++)
+            {
+                RectPiece("Floor 2 room 1 coffee cup " + i, new Vector2(-11.72f + i * .27f, 6.08f),
+                    new Vector2(.16f, .18f), new Color32(222, 221, 207, 255), 4, false, root);
+            }
+
+            // Small seating nook set above the clear walk lane from the elevator to room 3.
+            RectPiece("Floor 2 room 1 rug", new Vector2(-10.7f, 2.2f),
+                new Vector2(4.6f, 2.8f), new Color32(132, 137, 130, 255), -8, false, root);
+            RectPiece("Floor 2 room 1 sofa base", new Vector2(-11.65f, 2.25f),
+                new Vector2(2.05f, 1.18f), new Color32(71, 82, 83, 255), 0, true, root);
+            RectPiece("Floor 2 room 1 sofa seat", new Vector2(-11.65f, 2.12f),
+                new Vector2(1.76f, .78f), upholstery, 1, false, root);
+            RectPiece("Floor 2 room 1 sofa back", new Vector2(-11.65f, 2.72f),
+                new Vector2(1.88f, .32f), cushion, 2, false, root);
+            RectPiece("Floor 2 room 1 sofa cushion left", new Vector2(-12.08f, 2.12f),
+                new Vector2(.72f, .58f), cushion, 2, false, root);
+            RectPiece("Floor 2 room 1 sofa cushion right", new Vector2(-11.22f, 2.12f),
+                new Vector2(.72f, .58f), cushion, 2, false, root);
+            RectPiece("Floor 2 room 1 coffee table top", new Vector2(-9.55f, 2.18f),
+                new Vector2(1.1f, .78f), wood, 1, true, root);
+            RectPiece("Floor 2 room 1 coffee table inset", new Vector2(-9.55f, 2.18f),
+                new Vector2(.91f, .59f), new Color32(145, 112, 81, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 magazine", new Vector2(-9.55f, 2.18f),
+                new Vector2(.34f, .24f), new Color32(190, 190, 173, 255), 3, false, root);
+
+            // One modest potted plant in the upper-west corner.
+            RectPiece("Floor 2 room 1 plant pot", new Vector2(-13.05f, 4.55f),
+                new Vector2(.55f, .5f), new Color32(128, 100, 77, 255), 1, true, root);
+            RectPiece("Floor 2 room 1 plant leaves", new Vector2(-13.05f, 4.88f),
+                new Vector2(.78f, .64f), leaf, 2, false, root);
+            RectPiece("Floor 2 room 1 plant leaf highlight", new Vector2(-13.05f, 4.96f),
+                new Vector2(.24f, .33f), new Color32(112, 144, 91, 255), 3, false, root);
+            // Lower-wall rest details; centered below the walk lane so the elevator route stays open.
+            RectPiece("Floor 2 room 1 lower bench base", new Vector2(-11.4f, -6.78f),
+                new Vector2(2.15f, .64f), new Color32(67, 79, 81, 255), 0, true, root);
+            RectPiece("Floor 2 room 1 lower bench seat", new Vector2(-11.4f, -6.66f),
+                new Vector2(1.88f, .43f), new Color32(130, 142, 136, 255), 1, false, root);
+            RectPiece("Floor 2 room 1 lower bench cushion left", new Vector2(-11.84f, -6.65f),
+                new Vector2(.72f, .33f), new Color32(158, 164, 152, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 lower bench cushion right", new Vector2(-10.96f, -6.65f),
+                new Vector2(.72f, .33f), new Color32(158, 164, 152, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 lower side table", new Vector2(-8.9f, -6.8f),
+                new Vector2(.72f, .62f), new Color32(112, 87, 65, 255), 1, true, root);
+            RectPiece("Floor 2 room 1 lower side table top", new Vector2(-8.9f, -6.74f),
+                new Vector2(.62f, .5f), new Color32(151, 117, 84, 255), 2, false, root);
+            RectPiece("Floor 2 room 1 lower waste bin", new Vector2(-7.45f, -6.83f),
+                new Vector2(.48f, .62f), new Color32(91, 105, 105, 255), 1, true, root);
+            RectPiece("Floor 2 room 1 lower waste bin rim", new Vector2(-7.45f, -6.55f),
+                new Vector2(.5f, .1f), new Color32(126, 140, 138, 255), 2, false, root);
+            // Preserve the existing connection between the first-floor gate and second-floor arrival.
+            RectPiece(
+                "Security gate connector floor",
+                new Vector2(16f, -4f),
+                new Vector2(5f, 2.4f),
+                new Color32(166, 174, 173, 255),
+                -10,
+                false,
+                firstFloorRoot
+            );
         }
-
-        private void BuildElevatorCabin(Transform root, string prefix)
-        {
-            Color floor = new Color32(107, 119, 120, 255);
-            Color wall = new Color32(65, 76, 79, 255);
-            Color trim = new Color32(151, 163, 162, 255);
-
-            // An open-front, square cabin extends beyond the building edge so both actors
-            // can stand inside while the floor geometry swaps underneath them.
-            RectPiece(prefix + " floor", new Vector2(15.22f, -4f), new Vector2(2.8f, 2.8f), floor, -8, false, root);
-            RectPiece(prefix + " north wall", new Vector2(15.22f, -2.62f), new Vector2(2.8f, .12f), wall, 1, true, root);
-            RectPiece(prefix + " south wall", new Vector2(15.22f, -5.38f), new Vector2(2.8f, .12f), wall, 1, true, root);
-            RectPiece(prefix + " rear wall", new Vector2(16.58f, -4f), new Vector2(.12f, 2.8f), wall, 1, true, root);
-            RectPiece(prefix + " north trim", new Vector2(15.22f, -2.69f), new Vector2(2.68f, .035f), trim, 2, false, root);
-            RectPiece(prefix + " south trim", new Vector2(15.22f, -5.31f), new Vector2(2.68f, .035f), trim, 2, false, root);
-            RectPiece(prefix + " rear trim", new Vector2(16.51f, -4f), new Vector2(.035f, 2.68f), trim, 2, false, root);
-        }
-
         private void BuildWalls()
         {
             Color wall = new Color32(64, 76, 80, 255);
@@ -1131,7 +1230,32 @@ namespace Woken.Gameplay
 
         private void BuildNavigationSurface()
         {
-            var surfaceObject = new GameObject("2D Navigation Surface");
+            Physics2D.SyncTransforms();
+            NavMeshSurface surface = CreateNavigationSurface("Woken Continuous Navigation Surface");
+            Transform blackExterior = secondFloorRoot != null
+                ? secondFloorRoot.Find("Floor 2 black exterior")
+                : null;
+            SpriteRenderer backgroundRenderer = blackExterior != null
+                ? blackExterior.GetComponent<SpriteRenderer>()
+                : null;
+            bool restoreBackground = backgroundRenderer != null && backgroundRenderer.enabled;
+            if (backgroundRenderer != null)
+                backgroundRenderer.enabled = false;
+
+            try
+            {
+                surface.BuildNavMesh();
+            }
+            finally
+            {
+                if (backgroundRenderer != null)
+                    backgroundRenderer.enabled = restoreBackground;
+            }
+        }
+
+        private NavMeshSurface CreateNavigationSurface(string surfaceName)
+        {
+            var surfaceObject = new GameObject(surfaceName);
             surfaceObject.transform.rotation = Quaternion.Euler(270f, 0f, 0f);
 
             NavMeshSurface surface = surfaceObject.AddComponent<NavMeshSurface>();
@@ -1140,8 +1264,7 @@ namespace Woken.Gameplay
             surface.hideEditorLogs = true;
 
             surfaceObject.AddComponent<CollectSources2d>();
-            surface.BuildNavMesh();
-
+            return surface;
         }
 
         private void BuildStorageRoom()
@@ -1346,14 +1469,14 @@ namespace Woken.Gameplay
                 BoxCollider2D elevatorClickArea = elevatorFaceplate.gameObject.AddComponent<BoxCollider2D>();
                 elevatorClickArea.size = new Vector2(.8f, 2.2f);
                 elevatorClickArea.isTrigger = true;
-                nameUI.Register(elevatorClickArea, "Asansör", elevatorFaceplate.position + Vector3.up * 1.25f);
+                nameUI.Register(elevatorClickArea, "Güvenlik Kapısı", elevatorFaceplate.position + Vector3.up * 1.25f);
                 Transform servicePanel = firstFloorRoot.Find("Elevator service panel");
                 if (servicePanel != null)
                 {
                     BoxCollider2D panelClickArea = servicePanel.gameObject.AddComponent<BoxCollider2D>();
                     panelClickArea.size = new Vector2(1f, 1.1f);
                     panelClickArea.isTrigger = true;
-                    nameUI.Register(panelClickArea, "Asansör Paneli", servicePanel.position + Vector3.up * .7f);
+                    nameUI.Register(panelClickArea, "Kapı Kontrol Paneli", servicePanel.position + Vector3.up * .7f);
                 }
 
                 Transform batteryBay = firstFloorRoot.Find("Battery bay backing");
@@ -1366,7 +1489,6 @@ namespace Woken.Gameplay
                 }
             }
 
-            BuildElevatorCabin(firstFloorRoot, "Elevator cabin");
             firstFloorNorthDoor = firstFloorRoot.Find("Elevator door leaf north");
             firstFloorSouthDoor = firstFloorRoot.Find("Elevator door leaf south");
         }
@@ -1552,6 +1674,10 @@ namespace Woken.Gameplay
             bool collider,
             Transform parent = null)
         {
+            if (parent != null && secondFloorRoot != null
+                && (parent == secondFloorRoot || parent.IsChildOf(secondFloorRoot)))
+                center.x += SecondFloorOffsetX;
+
             GameObject piece = new GameObject(name);
             piece.transform.position = center;
             piece.transform.localScale =
@@ -1616,3 +1742,9 @@ namespace Woken.Gameplay
 
     }
 }
+
+
+
+
+
+
