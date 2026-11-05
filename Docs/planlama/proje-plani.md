@@ -1,73 +1,69 @@
 # WOKEN — Proje Planı
 
-## 1. Proje Tanımı
+## 1. Projenin Amacı
 
-WOKEN, terk edilmiş bir laboratuvarda geçen, keşif, bulmaca çözme ve kaçış mekaniklerine dayalı 2D bir oyun projesidir. Oyuncunun temel amacı, laboratuvar ortamını keşfederek ilerlemek ve karşılaştığı engelleri çözerek kaçış yolunu bulmaktır.
+WOKEN, Unity ve C# kullanılarak geliştirilen, yapay zekâ destekli 2D bulmaca ve kaçış oyunudur. Oyuncunun terk edilmiş bir laboratuvarda çevresini keşfederek çeşitli görevleri tamamlaması, bulmacaları çözmesi ve çıkış yolunu bulması amaçlandı.
 
-Oyunun önemli bileşenlerinden biri, oyuncuya eşlik eden yardımcı robot karakteridir. Robotun çevresini algılayabilmesi, otonom hareket edebilmesi ve oyuncuyla etkileşim kurabilmesi hedeflenmektedir.
+Projede, oyuncuya yardımcı olan otonom bir robot ve yerel dil modeliyle çalışan bir NPC olmak üzere iki farklı yapay zekâ sistemi kullanılmasına karar verildi.
 
-Projede ayrıca yerel bir büyük dil modeli (LLM) kullanılarak robotun oyuncuyla daha esnek ve bağlama uygun diyaloglar kurması amaçlanmaktadır.
+## 2. Projenin Kapsamı
 
-## 2. Projenin Amaçları
+Proje kapsamında laboratuvar ortamı, oyuncu hareket sistemi, nesne etkileşimleri, bulmacalar, yardımcı robot davranışları ve yapay zekâ destekli NPC diyalogları ele alındı.
 
-- Unity ve C# kullanarak oynanabilir bir 2D oyun prototipi geliştirmek.
-- Keşif, etkileşim ve bulmaca çözme mekaniklerini tasarlamak.
-- Yardımcı robot için çevre algılama ve otonom navigasyon sistemi geliştirmek.
-- Yerel LLM entegrasyonunu oyun mimarisine dahil etmek.
-- Yapay zekâ ile oyun sistemleri arasındaki iletişimi yapılandırılmış verilerle yönetmek.
-- Yazılım geliştirme, sürüm kontrolü, test ve teknik dokümantasyon süreçlerini uygulamak.
+Oyuncunun odalar arasında ilerleyebilmesi için belirli görevleri tamamlaması ve çevredeki nesnelerle etkileşime geçmesi planlandı. Yardımcı robotun oyuncuyu takip etmesi, belirlenen hedeflere hareket etmesi ve görevlerde destek sağlaması amaçlandı.
 
-## 3. Proje Kapsamı
+Ayrıca oyuncunun NPC ile Türkçe yazılı iletişim kurabildiği, NPC'nin konuşmanın içeriğine göre farklı duygu durumları sergilediği ve dinamik yanıtlar ürettiği bir sistem tasarlanması kararlaştırıldı.
 
-### 3.1. Oyun Mekanikleri
+## 3. Kullanılan Teknolojiler
 
-- Oyuncu hareketi ve temel kontroller
-- Laboratuvar ortamının keşfedilmesi
-- Nesnelerle etkileşim
-- Bulmaca ve ilerleme mekanikleri
-- Oyun içi arayüzler
+- **Unity:** Oyun ortamının, sahnelerin ve oynanış mekaniklerinin geliştirilmesi için seçildi.
+- **C#:** Oyuncu hareketleri, robot davranışları ve oyun içi etkileşimlerin programlanması için kullanıldı.
+- **NavMeshPlus ve AI Navigation:** Yardımcı robotun rota oluşturması ve hedef noktalara hareket etmesi için kullanıldı.
+- **Ollama ve Gemma:** Yerel dil modeli üzerinden dinamik NPC diyaloglarının geliştirilmesi için seçildi.
+- **Python:** Yerel LLM sisteminin bağımsız olarak geliştirilmesi ve test edilmesi için planlandı.
+- **Git ve GitHub:** Sürüm kontrolü ve ekip içi kod paylaşımı için kullanıldı.
 
-### 3.2. Yardımcı Robot
+## 4. Geliştirme Aşamaları
 
-- Robot karakterinin oyun ortamında bulunması
-- Çevre algılama mekanizmaları
-- Navigasyon ve hedefe yönelme
-- Oyuncuyla etkileşim
-- Hata durumlarının ve ulaşılamayan hedeflerin yönetimi
+### Planlama ve Hazırlık
 
-### 3.3. Yapay Zekâ Entegrasyonu
+Oyunun temel senaryosu, görev yapısı ve kullanılacak teknolojiler belirlendi. Unity projesi oluşturuldu ve GitHub üzerinden ortak geliştirme ortamı hazırlandı.
 
-- Ollama üzerinden yerel dil modeli çalıştırılması
-- Oyun ile dil modeli arasındaki iletişimin kurulması
-- İstek ve yanıtların yapılandırılmış biçimde işlenmesi
-- Asenkron iletişim ve hata yönetimi
-- Model yanıtlarının oyun sistemleri açısından doğrulanması
+### Oyun Ortamı ve Temel Mekanikler
 
-## 4. Teknik Yaklaşım
+Laboratuvarın odaları ve çevre nesneleri tasarlandı. Oyuncu hareketleri, nesne etkileşimleri, bilgilendirme mesajları ve temel bulmaca mekanikleri geliştirildi.
 
-Oyun Unity ve C# kullanılarak geliştirilecektir. Robotun hareketi, çevre algılama ve navigasyon bileşenleri birbirinden ayrılabilir şekilde tasarlanacaktır.
+### Yardımcı Robot Sistemi
 
-Yerel dil modeli, oyun mantığından bağımsız bir iletişim bileşeni üzerinden kullanılacaktır. Modelin ürettiği yanıtlar doğrudan ve kontrolsüz biçimde oyun durumunu değiştirmeyecek; gerekli doğrulama ve izin kontrollerinden geçirilecektir.
+Robotun oyuncuyu takip etmesi ve hedef noktalara hareket etmesi için NavMesh tabanlı navigasyon sistemi oluşturuldu. Robotun görev davranışları ve oyun senaryosuyla etkileşimleri geliştirildi.
 
-## 5. Geliştirme İlkeleri
+### Yerel LLM Sistemi
 
-- Modüler ve sürdürülebilir kod yapısı
-- Ekip üyeleri arasında görevlerin açık biçimde paylaşılması
-- Git ve GitHub ile sürüm kontrolü
-- Teknik kararların dokümante edilmesi
-- Gerçekleştirilen çalışmaların düzenli olarak raporlanması
-- Test edilebilir bileşenlerin geliştirilmesi
-- Tamamlanmamış özelliklerin dokümantasyonda açıkça belirtilmesi
+NPC diyalogları için Ollama üzerinden Gemma modelinin kullanılması planlandı. NPC'nin Türkçe dinamik yanıtlar üretmesi, beş farklı duygu durumunu desteklemesi ve yapılandırılmış JSON çıktıları oluşturması hedeflendi.
 
-## 6. Başarı Ölçütleri
+### Entegrasyon ve Test
 
-- Oyuncunun temel oyun mekaniklerini kullanabilmesi
-- Robotun belirlenen hedeflere güvenilir biçimde yönelmesi
-- Çevre algılama sonuçlarının robot davranışlarında kullanılabilmesi
-- Yerel LLM ile oyun arasında kararlı iletişim kurulması
-- Hatalı veya beklenmeyen model yanıtlarının güvenli biçimde yönetilmesi
-- Projenin kurulum, mimari, test ve geliştirme süreçlerinin dokümante edilmesi
+Yerel LLM sisteminin bağımsız testlerden sonra Unity oyununa bağlanması planlandı. Oyun mekanikleri, robot davranışları, NPC diyalogları ve hata durumlarının farklı senaryolarla değerlendirilmesi kararlaştırıldı.
 
-## 7. Proje Durumu
+## 5. Görev Dağılımı ve Ekip Çalışması
 
-Proje başlangıç ve yapılandırma aşamasındadır. Yukarıda belirtilen özellikler hedeflenen kapsamı tanımlar; tamamlanma durumları ara raporlarda ve test sonuçlarında güncellenecektir.
+Proje, Sueda ve İlayda tarafından ortak geliştirildi. Sueda, yardımcı robotun navigasyon ve görev sistemleri ile oyun içi etkileşimler üzerinde çalıştı. İlayda, laboratuvar ortamının tasarımı, animasyonlar ve geçiş mekanikleri üzerinde çalıştı.
+
+Oyunun genel planlaması, yerel LLM sistemi, test süreçleri ve dokümantasyon çalışmaları ortak sorumluluk olarak belirlendi. Geliştirme sürecinde GitHub kullanılarak yapılan değişikliklerin takip edilmesi ve proje dosyalarının güncel tutulması sağlandı.
+
+## 6. Test ve Başarı Kriterleri
+
+Projenin değerlendirilmesi için aşağıdaki kriterler belirlendi:
+
+- Oyuncu hareketlerinin ve nesne etkileşimlerinin doğru çalışması.
+- Robotun oyuncuyu takip etmesi ve görevlerini uygun şekilde tamamlaması.
+- Bulmacaların ve elektrikli kapı geçiş koşullarının doğru çalışması.
+- NPC'nin Türkçe, bağlama uygun ve dinamik yanıtlar üretmesi.
+- Beş farklı duygu durumunun diyaloglara doğru yansıtılması.
+- Bağlantı hatalarının ve zaman aşımı durumlarının oyun akışını bozmadan yönetilmesi.
+
+## 7. Beklenen Sonuç
+
+Proje sonunda oyuncunun laboratuvar ortamında keşif yapabildiği, bulmacaları çözebildiği, yardımcı robotla görevleri tamamlayabildiği ve yerel LLM destekli NPC ile dinamik iletişim kurabildiği bir oyun ortaya çıkarılması hedeflendi.
+
+Geliştirilen sistemlerin tek bir oyun içerisinde birleştirilmesiyle yapay zekâ destekli etkileşimlerin oyun deneyimine katkısının gösterilmesi amaçlandı.

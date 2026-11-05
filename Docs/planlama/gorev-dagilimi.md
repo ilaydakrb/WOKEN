@@ -1,42 +1,26 @@
 # WOKEN — Görev Dağılımı
 
-## 1. Amaç
+WOKEN projesi iki kişilik bir ekip tarafından geliştirildi. Görevler ekip üyeleri arasında paylaştırıldı ve geliştirme süreci GitHub üzerinden ortak yürütüldü.
 
-Bu belge, WOKEN projesinde ekip üyelerinin sorumluluklarını ve ortak çalışma alanlarını tanımlamak amacıyla hazırlanmıştır.
+### Sueda
 
-## 2. Ekip Üyeleri ve Sorumlulukları
+- Proje klasör yapısı ve dokümantasyon düzeni oluşturuldu.
+- Yardımcı robotun NavMesh tabanlı hareket, oyuncu takibi ve görev davranışları geliştirildi.
+- Oyun içi nesne etkileşimleri, görev akışları ve robot yönlendirme sistemleri oluşturuldu.
+- Oyun senaryoları, oda etiketleri ve robot etkileşimleri düzenlendi.
+- Robot sistemindeki teknik hatalar giderildi ve proje dosyaları düzenlendi.
 
-### 2.1. Sueda — Robot ve Teknik Dokümantasyon
+### İlayda
 
-- Yardımcı robotun yazılım bileşenlerinin geliştirilmesi
-- Robotun çevresini algılamasına yönelik mekanizmaların geliştirilmesi
-- Robot navigasyonu ve hedefe yönelme sisteminin geliştirilmesi
-- Robotun oyuncu ve oyun ortamıyla etkileşiminin tasarlanması
-- Robot davranışlarının test edilmesi
-- Proje planı, teknik kavramlar ve ara raporların hazırlanması
+- Unity projesinin ilk kurulumu gerçekleştirildi ve temel oyun karakterleri eklendi.
+- Laboratuvarın katları, odaları ve çevre tasarımları oluşturuldu.
+- Elektrikli kapı ve odalar arası geçiş mekanizmaları geliştirildi.
+- Oyun ortamına ait animasyonlar ve görsel düzenlemeler yapıldı.
 
-### 2.2. İlayda — Harita ve Oyun Ortamı
+### Ortak Sorumluluklar
 
-- Laboratuvar ortamının ve harita düzeninin hazırlanması
-- Oyun alanlarının ve geçişlerin tasarlanması
-- Robot ve oyuncunun hareket edebileceği alanların belirlenmesi
-- Bulmaca ve etkileşim alanlarının yerleştirilmesi
-- Haritanın robot navigasyonu ve diğer oyun sistemleriyle uyumlu hâle getirilmesi
-
-### 2.3. Sueda ve İlayda — Yerel LLM Entegrasyonu
-
-- Ollama üzerinden yerel model çalıştırma ve model seçimi
-- Oyun ile dil modeli arasındaki iletişimin tasarlanması
-- İstek ve yanıt formatlarının belirlenmesi
-- Asenkron iletişim ve hata yönetiminin geliştirilmesi
-- Model yanıtlarının doğrulanması ve oyun sistemleriyle ilişkilendirilmesi
-- Robotun oyuncuyla kuracağı diyalogların test edilmesi
-
-## 3. Ortak Çalışma Alanları
-
-- Oyuncu, robot ve harita sistemlerinin birbiriyle uyumlu çalışmasının sağlanması
-- Robot navigasyonu için harita ve çarpışma bilgilerinin uyumlaştırılması
-- Oyun sistemleri arasındaki veri alışverişinin tanımlanması
-- Entegrasyon ve sistem testlerinin yürütülmesi
-- Git ve GitHub üzerinden sürüm kontrolünün sağlanması
-- Ara raporların ve teknik belgelerin güncel tutulması
+- Oyunun temel fikri, senaryosu ve genel geliştirme planı belirlendi.
+- Oyun sistemlerinin birleştirilmesi ve genel test süreçleri planlandı.
+- Gemma tabanlı yerel LLM sistemi, dinamik NPC diyalogları ve duygu durumlarının geliştirilmesi üstlenildi.
+- LLM'nin Unity ile entegrasyonu ve JSON tabanlı yanıt sisteminin oluşturulması planlandı.
+- Proje dokümantasyonu, sunum ve teslim çalışmalarının birlikte yürütülmesi kararlaştırıldı.

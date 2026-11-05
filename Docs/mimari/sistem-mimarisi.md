@@ -2,122 +2,85 @@
 
 ## 1. Genel Bakış
 
-WOKEN, Unity ve C# kullanılarak geliştirilecek, terk edilmiş bir laboratuvarda geçen 2D keşif ve kaçış oyunudur. Sistem mimarisi; oyuncu kontrolü, oyun ortamı, yardımcı robot, otonom navigasyon ve yerel büyük dil modeli (LLM) entegrasyonu bileşenlerinden oluşacaktır.
+WOKEN, Unity ve C# ile geliştirilen, terk edilmiş bir laboratuvarda geçen 2D keşif ve kaçış oyunudur. Oyuncu laboratuvarı keşfeder, çevredeki nesnelerle etkileşime girer ve çıkışa ulaşmak için robot yardımcısıyla birlikte görevleri tamamlar.
 
-Mimari tasarımın temel amacı, oyun bileşenlerini modüler biçimde geliştirmek ve aralarındaki iletişimi açık arayüzler üzerinden yönetmektir.
+Sistem; oyuncu kontrolü, oyun dünyası, robot hareketi ve görevleri, etkileşim arayüzleri ve navigasyon bileşenlerinden oluşur. Bu bileşenlerin önemli bir bölümü `WokenLevelBootstrap` tarafından oyun başında oluşturulur ve birbirine bağlanır.
 
 ## 2. Temel Bileşenler
 
-### 2.1. Oyuncu Sistemi
+### 2.1. Oyun Dünyası ve Başlatma
 
-Oyuncunun oyun ortamında hareket etmesini, çevreyle etkileşim kurmasını ve bulmacaları çözmesini sağlar.
+`WokenLevelBootstrap`, oyun alanlarını, odaları, nesneleri ve karakterleri hazırlar. Duvarlar ve çevre nesneleri çarpışma bileşenleriyle oluşturulur; karakterlerin hareket edeceği alan için 2D NavMesh hazırlanır.
 
-Temel sorumlulukları:
+Sınıf ayrıca oyuncu, robot, etkileşim arayüzleri, asansör geçişi ve oda durumları arasındaki bağlantıları kurar. Böylece sahnedeki temel oyun akışı tek bir başlangıç noktasından başlatılır.
 
-- Oyuncu hareketinin yönetilmesi
-- Oyun nesneleriyle etkileşimin sağlanması
-- Oyuncu girdilerinin işlenmesi
-- Oyun mekanikleriyle iletişim kurulması
+### 2.2. Oyuncu Sistemi
 
-### 2.2. Harita ve Oyun Ortamı
+`PlayerWASDController`, oyuncunun WASD ve yön tuşlarıyla hareketini yönetir. Hareket, `Rigidbody2D` üzerinden uygulanır; karakterin animasyonu ise hareket yönüne göre güncellenir.
 
-Laboratuvarın fiziksel yapısını, hareket alanlarını, engelleri ve etkileşim noktalarını içerir.
+Oyuncu; nesne, kapı, parola paneli, laptop ve diğer etkileşim noktalarıyla ilgili işlemleri klavye girdileri ve ilgili etkileşim bileşenleri üzerinden gerçekleştirir.
 
-Temel sorumlulukları:
+### 2.3. Yardımcı Robot ve Görevler
 
-- Oyun alanlarının ve geçişlerin tanımlanması
-- Çarpışma ve hareket sınırlarının belirlenmesi
-- Robot ve oyuncunun hareket edebileceği alanların oluşturulması
-- Navigasyon sisteminin ihtiyaç duyduğu çevresel bilgilerin sağlanması
+`RobotMovementController`, robotun oyuncuyu takip etmesini ve belirlenmiş hedeflere gitmesini yönetir. Robotun hareket rotası `NavMeshAgent` tarafından hesaplanır; fiziksel konumu ise `Rigidbody2D` ile eşgüdümlü biçimde güncellenir.
 
-### 2.3. Yardımcı Robot
+Robot iki temel hareket durumunda çalışır:
 
-Oyuncuya eşlik eden robotun oyun içindeki davranışlarını yönetir. Robotun çevresini algılaması, hedeflere yönelmesi ve oyuncuyla etkileşim kurması hedeflenmektedir.
+- Oyuncuyu takip etme
+- Bir görev hedef noktasına gitme
 
-Temel sorumlulukları:
+Görev tamamlandığında, iptal edildiğinde veya hedefe ulaşmak için rota bulunamadığında sonuç bilgisi diğer bileşenlere iletilir. `RobotRouteGuideUI`, robotun konuşmalarını, görev akışını ve oyuncuya verdiği yönlendirmeleri yönetir.
 
-- Çevresel algılama sonuçlarının değerlendirilmesi
-- Hedef belirleme ve navigasyon sisteminin kullanılması
-- Hareket davranışlarının yönetilmesi
-- Oyuncuyla etkileşim kurulması
-- Gerekli durumlarda LLM bileşeninden gelen yanıtların kullanılması
+### 2.4. Navigasyon ve Rota Planlama
 
-### 2.4. Navigasyon ve Çevre Algılama
+Robotun oyuncuyu takip etmesi ve görev hedeflerine gitmesi için NavMesh kullanılır. NavMesh, odalardaki yürünebilir alanları ve engelleri dikkate alarak robotun hareket rotasını belirler.
 
-Robotun oyun ortamında hareket edebilmesi için gereken algılama ve yön bulma işlevlerini kapsar.
+Projede ayrıca `GridRoutePlanner` adında, ızgara tabanlı rota seçenekleri üretebilen bir yardımcı sınıf bulunur. Bu sınıf NavMesh ile aynı işi yapmaz; robotun mevcut takip ve görev hareketinde kullanılan ana navigasyon sistemi NavMesh’tir.
 
-Temel sorumlulukları:
+### 2.5. Etkileşim ve Arayüz Bileşenleri
 
-- Robotun çevresindeki engellerin algılanması
-- Hedef ve hareket alanlarının değerlendirilmesi
-- Navigasyon sisteminin uygun hareket rotası belirlemesine yardımcı olunması
-- Hareketin başarısız olduğu veya hedefe ulaşılamadığı durumların ele alınması
+Etkileşimler, ilgili görev veya nesne türüne göre ayrı bileşenlerde yönetilir. Örneğin:
 
-Navigasyon yöntemi, Unity sürümü ve 2D ortamın teknik gereksinimleri değerlendirilerek belirlenecektir.
+- `WorldObjectNameUI`, tıklanan nesnelerin adını ve kısa bilgilendirme mesajlarını gösterir.
+- `DepotKeypadUI`, depo kapısının şifre girişini ve kapı durumunu yönetir.
+- `BatteryBayInteractionUI`, bataryanın alınması ve asansör yuvasına takılması akışını yürütür.
+- `LaptopArchiveUI`, laptop üzerindeki dosyaları ve oyun içi ipuçlarını gösterir.
+- `HiddenDrawerNotebookUI`, gizli çekmecedeki defterin açılmasını ve içeriğinin okunmasını sağlar.
 
-### 2.5. Yerel LLM Bileşeni
+Bu yapı, her etkileşimin kendi sorumluluğunda tutulmasına yardımcı olur.
 
-Robotun oyuncuyla daha esnek ve bağlama uygun diyaloglar kurabilmesi için yerel bir büyük dil modelinden yararlanılması planlanmaktadır. Modelin Ollama aracılığıyla çalıştırılması hedeflenmektedir.
+### 2.6. Keşif ve Görüş Alanı
 
-Temel sorumlulukları:
+`WorldExplorationFog`, haritanın keşfedilmemiş alanlarını örter. Oyuncu hareket ettikçe yakınındaki ve engellerin arkasında kalmayan hücreler açılır. Keşfedilen alanlar açık kalır.
 
-- Oyun tarafından oluşturulan istemlerin modele iletilmesi
-- Model yanıtlarının alınması ve işlenmesi
-- Yanıtların beklenen biçime uygunluğunun kontrol edilmesi
-- Hata ve zaman aşımı durumlarının yönetilmesi
-- Robotun diyalog sistemiyle iletişim kurulması
+### 2.7. LLM Entegrasyonu
 
-LLM, temel oyuncu hareketi veya robot navigasyonunun yerine geçmeyecek; bu sistemleri tamamlayan bir bileşen olarak kullanılacaktır.
+Oyunda Gemma adlı bir yapay zekâ karakteri ve onunla ilgili anlatı öğeleri bulunur. Ancak mevcut kaynak kodunda oyuncu mesajlarını bir büyük dil modeline gönderip yanıt alan bir LLM bağlantısı henüz yer almamaktadır.
 
-## 3. Bileşenler Arası İletişim
+LLM entegrasyonu eklendiğinde, modelle iletişim oyun hareketi ve görev mantığından ayrı bir bileşende tutulmalıdır. Modelden gelen yanıtlar metin olarak değerlendirilmeli; oyun dünyasını değiştiren hareketler ve görevler oyun kodu tarafından doğrulanıp uygulanmalıdır.
 
-Sistemlerin aşağıdaki akış doğrultusunda birlikte çalışması hedeflenmektedir:
+> **Güncelleme notu:** Gerçek LLM bağlantısı tamamlandıktan sonra bu bölüm; kullanılan model ve iletişim yöntemi, duygu durumlarına göre yanıt üretimi, hata yönetimi ve oyun sistemleriyle veri akışı açıklanacak şekilde güncellenmelidir. Son proje kontrolünde sistem mimarisinin ilgili bölümleri de yeniden gözden geçirilmelidir.
 
-1. Oyuncu, oyun ortamında hareket eder veya bir etkileşim başlatır.
-2. Oyun sistemleri, oyuncunun durumunu ve ilgili çevresel bilgileri değerlendirir.
-3. Robotun hareket veya etkileşim ihtiyacı belirlenir.
-4. Navigasyon bileşeni, robotun hedefe ulaşmasına yardımcı olur.
-5. Diyalog gerektiğinde oyun, LLM bileşenine uygun bir istek gönderir.
-6. LLM yanıtı alınır, doğrulanır ve robotun diyalog sisteminde kullanılır.
-7. Oyun, oluşan durumu kullanıcıya yansıtır.
+## 3. Bileşenler Arası Akış
 
-Bu akış hedeflenen mimariyi temsil eder. Uygulama sırasında bileşenlerin sorumlulukları ve veri alışverişi netleştirilecektir.
+1. `WokenLevelBootstrap`, oyun alanını ve sistem bileşenlerini oluşturur.
+2. Oyuncu, `PlayerWASDController` aracılığıyla dünyada hareket eder.
+3. Etkileşim bileşenleri oyuncunun bulunduğu konuma ve girdilerine göre ilgili işlemi başlatır.
+4. Robotun takip veya görev davranışını `RobotMovementController` yürütür.
+5. NavMesh, robotun yürünebilir alanlardaki rotasını hesaplar.
+6. `RobotRouteGuideUI` görev durumunu ve robotun mesajlarını gösterir.
+7. Oyun dünyasındaki değişiklikler ilgili bileşenler tarafından uygulanır; örneğin batarya takılınca yuva ışığı yeşile döner ve asansör etkinleşir.
 
-## 4. LLM İletişim Yapısı
+## 4. Hata Durumları
 
-Yerel modelle iletişim kuran bileşenin oyun mantığından ayrılması planlanmaktadır. Böylece model değişikliği veya iletişim hataları diğer oyun sistemlerini mümkün olduğunca az etkileyecektir.
+Sistemlerde hedefe ulaşılamaması, rota bulunamaması, eksik nesne referansları veya etkileşim için gerekli koşulların sağlanmaması gibi durumlar ele alınır. Robotun görev sonucu ilgili sisteme iletilir ve oyuncuya uygun bir mesaj gösterilebilir.
 
-İletişim tasarımında aşağıdaki ilkeler gözetilecektir:
+LLM entegrasyonu eklendiğinde ayrıca bağlantı hatası, zaman aşımı ve boş ya da beklenmeyen yanıtlar için hata yönetimi uygulanmalıdır.
 
-- Model istekleri ana oyun akışını gereksiz yere bloke etmemelidir.
-- İstekler için zaman aşımı ve hata yönetimi bulunmalıdır.
-- Model yanıtları kullanılmadan önce doğrulanmalıdır.
-- Modelin ürettiği metin, doğrudan güvenilir bir oyun komutu olarak kabul edilmemelidir.
-- Oyun durumunu değiştiren eylemler oyun kodu tarafından kontrol edilmelidir.
+## 5. Mimari İlkeler
 
-## 5. Modülerlik ve Bağımlılıklar
-
-Bileşenler, sorumlulukları birbirinden ayrılacak şekilde tasarlanacaktır.
-
-- Oyuncu sistemi, robotun iç uygulama ayrıntılarına bağımlı olmamalıdır.
-- Robot hareketi, LLM yanıtının gelmesini beklemek zorunda olmamalıdır.
-- Navigasyon bileşeni, harita ve çarpışma verileriyle uyumlu çalışmalıdır.
-- LLM iletişimi, robotun diyalog ve etkileşim katmanından ayrılmalıdır.
-- Sistemler arası bağlantılar mümkün olduğunca açık ve test edilebilir arayüzler üzerinden kurulmalıdır.
-
-## 6. Hata Yönetimi
-
-Sistemin kararlılığını artırmak için aşağıdaki durumlar ele alınacaktır:
-
-- Robotun hedefe ulaşamaması
-- Navigasyon veya çevre algılama hataları
-- Yerel modelin çalışmaması
-- İsteklerin zaman aşımına uğraması
-- Boş, hatalı veya beklenmeyen model yanıtları
-- Oyun bileşenleri arasında uyumsuz veri aktarımı
-
-Hata durumlarında oyun akışının devam edebilmesi ve kullanıcıya uygun geri bildirim verilmesi hedeflenmektedir.
-
-## 7. Mimari Durum
-
-Bu belge, projenin hedeflenen sistem mimarisini tanımlar. Bileşenler uygulandıkça, entegrasyon kararları kesinleştikçe ve test sonuçları elde edildikçe güncellenecektir.
+- Her bileşen belirli bir sorumluluğu yönetir.
+- Robot hareketi ile konuşma ve arayüz akışı birbirinden ayrılır.
+- Nesne etkileşimleri ilgili etkileşim bileşenlerinde tutulur.
+- Oyun durumunu değiştiren kararlar oyun kodunun denetiminde kalır.
+- Yeni özellikler mevcut sistemlere mümkün olduğunca sınırlı bağımlılıkla eklenir.

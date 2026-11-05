@@ -1,74 +1,68 @@
 # WOKEN — Geliştirme Yol Haritası
 
-## 1. Proje Planlaması ve Kurulum
+## 1. Planlama ve Proje Kurulumu
 
-- Projenin kapsamının ve temel mekaniklerinin belirlenmesi
-- Unity projesinin oluşturulması ve yapılandırılması
-- Git ve GitHub üzerinden sürüm kontrolünün kurulması
-- Klasör yapısının ve teknik dokümantasyonun hazırlanması
-- Ekip üyelerinin görev dağılımının belirlenmesi
+- Oyunun temel fikri, hedefi ve ana senaryosu belirlendi.
+- Unity projesi ve GitHub üzerinden sürüm kontrolü oluşturuldu.
+- Ekip üyelerinin sorumlulukları belirlendi.
+- Proje dokümantasyonu için klasör yapısı hazırlandı.
 
-## 2. Temel Oyun Sistemleri
+## 2. Temel Oynanış Sistemleri
 
-- Oyuncu hareketi ve kontrol sisteminin geliştirilmesi
-- Kamera ve temel oyun sahnesinin yapılandırılması
-- Nesnelerle etkileşim altyapısının hazırlanması
-- Oyun içi durumların ve temel arayüzlerin tasarlanması
+- Oyuncunun WASD ve yön tuşlarıyla hareket etmesi sağlandı.
+- Oyuncu ve robot karakterleri oyun alanına eklendi.
+- Nesne adları ve kısa bilgilendirme mesajları için etkileşim sistemi geliştirildi.
+- Oyun içi mesaj baloncukları ve etkileşim arayüzleri oluşturuldu.
 
-## 3. Harita ve Oyun Mekanikleri
+## 3. Laboratuvar Haritası ve Bulmacalar
 
-- Terk edilmiş laboratuvar ortamının oluşturulması
-- Oyun alanlarının ve geçişlerin tasarlanması
-- Çarpışma alanlarının ve hareket sınırlarının belirlenmesi
-- Bulmaca ve etkileşim noktalarının yerleştirilmesi
-- Haritanın oyuncu ve robot hareketine uygunluğunun kontrol edilmesi
+- Laboratuvar odaları, geçişler ve çevre nesneleri oluşturuldu.
+- Odalardaki nesnelere etiketler eklendi.
+- Depo şifresi, laptop arşivi ve gizli çekmece defteri gibi keşif öğeleri hazırlandı.
+- Renkli düğmeler ve gizli çekmece bulmacası oluşturuldu.
+- Elektrikli kapının açılması, bataryanın yuvaya takılması koşuluna bağlandı.
 
-## 4. Robot ve Otonom Hareket
+## 4. Yardımcı Robot ve Görev Akışları
 
-- Yardımcı robotun oyun nesnesi olarak oluşturulması
-- Robotun çevresini algılayabilmesi için gerekli mekanizmaların geliştirilmesi
-- Navigasyon ve hedef belirleme yaklaşımının uygulanması
-- Robotun engelleri ve hareket alanlarını dikkate almasının sağlanması
-- Robotun oyuncuyla etkileşim altyapısının hazırlanması
-- Robot hareketlerinin farklı senaryolarda test edilmesi
+- Robotun oyuncuyu takip etmesi sağlandı.
+- Robotun hedef noktalarına gitmesi için NavMesh tabanlı hareket eklendi.
+- Robotun dar geçit, buton ve basamak gibi senaryolardaki görev davranışları geliştirildi.
+- Bataryanın alınması ve elektrikli kapının batarya yuvasına taşınması robotun görev akışına bağlandı.
+- Robotun oyuncuya senaryo boyunca mesajlarla yönlendirme yapması sağlandı.
 
-## 5. Yerel LLM Entegrasyonu
+## 5. Oyun Akışının ve Etkileşimlerin Birleştirilmesi
 
-- Ollama ve uygun yerel modelin seçilmesi
-- Oyun ile yerel model arasındaki iletişim yapısının kurulması
-- İstek ve yanıt formatlarının belirlenmesi
-- Asenkron iletişim mekanizmasının geliştirilmesi
-- Model yanıtlarının doğrulanması ve hata durumlarının yönetilmesi
-- Robot diyaloglarının oyun bağlamıyla ilişkilendirilmesi
+- Odalar arasındaki ilerleme sırası ve geçiş koşulları oluşturuldu.
+- Oyuncu, robot, bulmacalar ve çevre etkileşimleri bir araya getirildi.
+- Tamamlanamayan görevler için oyuncuya geri bildirim eklendi.
+- Robotun görevi olmadığında oyuncuyu takip etmesi sağlandı.
 
-## 6. Sistem Entegrasyonu
+## 6. Gemma ile LLM Diyaloğu
 
-- Robot, harita ve oyuncu sistemlerinin birleştirilmesi
-- Robotun navigasyon sistemiyle oyun ortamının uyumlaştırılması
-- Yerel LLM yanıtlarının robot etkileşimlerine bağlanması
-- Sistemler arası veri alışverişinin kontrol edilmesi
-- Entegrasyon sırasında ortaya çıkan sorunların giderilmesi
+- Oyun ile yerel Gemma dil modeli arasında iletişim kurulması planlandı.
+- Oyuncunun Gemma'ya mesaj gönderebilmesi için gerekli yapı tasarlandı.
+- Gemma'nın yanıtlarının oyun bağlamı ve senaryoyla uyumlu olması hedeflendi.
+- Beş farklı duygu durumuna göre yanıt tarzları planlandı.
+- İstek, yanıt, bağlantı hatası ve zaman aşımı durumlarının yönetilmesi kararlaştırıldı.
+- LLM yanıtlarının oyun içindeki görevleri kontrolsüz biçimde değiştirmesini engelleyecek kurallar belirlendi.
 
 ## 7. Test ve İyileştirme
 
-- Oyuncu hareketi ve etkileşim testlerinin gerçekleştirilmesi
-- Robot navigasyonu ve çevre algılama testlerinin yapılması
-- LLM iletişimi ve yanıt işleme senaryolarının test edilmesi
-- Hata durumları ve bağlantı kesintilerinin incelenmesi
-- Performans ve kararlılık sorunlarının değerlendirilmesi
-- Tespit edilen sorunlara yönelik iyileştirmelerin yapılması
+- Oyunun baştan sona oynanarak senaryo akışının kontrol edilmesi planlandı.
+- Robotun takibi, navigasyonu ve görevlerinin farklı durumlarda test edilmesi kararlaştırıldı.
+- Nesne etkileşimleri ve bulmaca çözümlerinin doğrulanması planlandı.
+- Gemma ile farklı duygu durumlarında diyalog senaryolarının test edilmesi kararlaştırıldı.
+- Hataların, anlaşılmayan yanıtların ve bağlantı kesintilerinin incelenmesi planlandı.
+- Görsel okunabilirlik, mesaj süreleri ve geçiş hızlarının son kez gözden geçirilmesi kararlaştırıldı.
 
-## 8. Son Düzenlemeler ve Teslim
+## 8. Dokümantasyon ve Teslim
 
-- Oyun akışının baştan sona kontrol edilmesi
-- Teknik dokümantasyonun güncellenmesi
-- Kurulum ve çalıştırma talimatlarının hazırlanması
-- Test sonuçlarının raporlanması
-- Projenin son sürümünün GitHub üzerinde düzenlenmesi
-- Proje çıktılarının ve sunum materyallerinin hazırlanması
+- Sistem mimarisinin LLM bağlantısı tamamlandıktan sonra güncellenmesi planlandı.
+- README ve gerekli kurulum/çalıştırma yönergelerinin hazırlanması kararlaştırıldı.
+- Test sonuçlarının ve bilinen sınırlamaların dokümante edilmesi planlandı.
+- Projenin son sürümünün GitHub üzerinde düzenlenmesi kararlaştırıldı.
+- Sunum ve teslim materyallerinin hazırlanması planlandı.
 
 ## Geliştirme İlkesi
 
-Aşamalar genel geliştirme sırasını temsil eder. Bazı çalışmalar, ekip üyelerinin görev dağılımına bağlı olarak paralel yürütülebilir. Özellikle harita ve robot navigasyonu arasındaki uyum ile yerel LLM entegrasyonunun oyun sistemlerine bağlanması, entegrasyon aşamasında birlikte doğrulanacaktır.
-
-Yol haritasındaki maddeler, uygulama ve test süreçlerinde elde edilen sonuçlara göre güncellenebilir.
+Yol haritası, tamamlanan işleri ve sıradaki geliştirme adımlarını gösterecek şekilde hazırlandı. Yeni kararlar alındıkça veya testlerde ek çalışma gerektiği görüldükçe güncellenmesi kararlaştırıldı.
