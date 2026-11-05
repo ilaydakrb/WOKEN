@@ -16,20 +16,28 @@ public class LabRobotClient : MonoBehaviour
     public UnityEvent onDoorDenied = new UnityEvent();
     [HideInInspector] public bool showTestPanel = false;
     public float conversationDistance = 1.4f;
+    public float doorOpeningSeconds = 3.2f;
+    public float escapeFadeSeconds = 5.2f;
+    Transform upperDoorHinge, lowerDoorHinge;
+    bool exitAllowed, escaping, escaped;
+    float escapeFade;
     Transform gemma;
     PlayerWASDController player;
     bool suppressedUntilLeave, movementWasEnabled, movementLocked;
     float nextLookup;
     string sessionId = "", draft = "", transcript = "", status = "";
     int turn;
-    bool busy, finished;
+    bool busy, finished, exitDenied, gameOver;
     Vector2 scroll;
+    float maxScroll;
+    bool scrollToBottom;
     GUIStyle titleStyle, bodyStyle, inputStyle, buttonStyle, hintStyle;
-    Texture2D fieldBackground, buttonBackground, hoverBackground;
+    Texture2D fieldBackground, buttonBackground, hoverBackground, successHeart;
     bool focusMessage;
     void Awake() { showTestPanel = false; }
     void Update()
     {
+        if (gameOver || escaping) { SetPanel(false); return; }
         if (Time.unscaledTime >= nextLookup && (gemma == null || player == null))
         {
             nextLookup = Time.unscaledTime + .5f;
@@ -43,6 +51,7 @@ public class LabRobotClient : MonoBehaviour
                 var target = GameObject.Find("Floor 2 room 5 LLM robot torso");
                 if (target != null) gemma = target.transform;
             }
+            PrepareExitDoor();
         }
         bool near = gemma != null && gemma.gameObject.activeInHierarchy && player != null
             && player.gameObject.activeInHierarchy
@@ -61,12 +70,19 @@ public class LabRobotClient : MonoBehaviour
         { suppressedUntilLeave = false; SetPanel(true); }
         if (showTestPanel && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             CloseConversation();
+        if (showTestPanel && Keyboard.current != null)
+        {
+            float direction = (Keyboard.current.downArrowKey.isPressed ? 1f : 0f)
+                            - (Keyboard.current.upArrowKey.isPressed ? 1f : 0f);
+            scroll.y = Mathf.Clamp(scroll.y + direction * 260f * Time.unscaledDeltaTime, 0, maxScroll);
+        }
     }
     void SetPanel(bool open)
     {
         if (open && !showTestPanel) focusMessage = true;
         showTestPanel = open;
-        if (open && !movementLocked && player != null)
+        bool lockMovement = open || gameOver || escaping;
+        if (lockMovement && !movementLocked && player != null)
         {
             movementWasEnabled = player.enabled;
             player.enabled = false;
@@ -76,14 +92,31 @@ public class LabRobotClient : MonoBehaviour
             if (animator != null) animator.SetMotion(Vector2.zero);
             movementLocked = true;
         }
-        else if (!open && movementLocked)
+        else if (!lockMovement && movementLocked)
         {
             if (player != null) player.enabled = movementWasEnabled;
             movementLocked = false;
         }
     }
-    public void CloseConversation() { suppressedUntilLeave = true; SetPanel(false); }
-    void OnDisable() { SetPanel(false); }
+    public void CloseConversation()
+    {
+        suppressedUntilLeave = true;
+        if (finished && exitDenied) gameOver = true;
+        else if (finished && exitAllowed && !escaping)
+        {
+            if (!PrepareExitDoor())
+            {
+                status = "Çıkış kapısı bulunamadı; sahne bağlantısını kontrol edin.";
+                Debug.LogError(status, this);
+                return;
+            }
+            escaping = true;
+            onDoorOpen.Invoke();
+            StartCoroutine(EscapeSequence());
+        }
+        SetPanel(false);
+    }
+    void OnDisable() { gameOver = false; escaping = false; SetPanel(false); }
     [Serializable] class Payload { public string session_id; public string message; public int turn; }
     [Serializable] class Result
     {
@@ -91,7 +124,6 @@ public class LabRobotClient : MonoBehaviour
         public int turn, remaining, score;
         public bool door_open;
     }
-    public void NewGame() { if (!busy) StartCoroutine(Begin()); }
     public void SendMessageToRobot(string message)
     {
         if (busy || finished) return;
@@ -120,18 +152,6 @@ public class LabRobotClient : MonoBehaviour
             else done(result);
         }
     }
-    IEnumerator Begin()
-    {
-        busy = true;
-        if (!string.IsNullOrEmpty(sessionId))
-            yield return Request("/close", new Payload { session_id = sessionId }, _ => { });
-        yield return Request("/session", new Payload(), result => {
-            if (result == null) return;
-            sessionId = result.session_id; turn = 0; finished = false;
-            transcript = ""; status = "Yeni oyun hazır.";
-        });
-        busy = false;
-    }
     IEnumerator Send(string message)
     {
         busy = true;
@@ -143,22 +163,31 @@ public class LabRobotClient : MonoBehaviour
         status = "Robot düşünüyor…";
         yield return Request("/message", new Payload { session_id = sessionId, message = message, turn = turn + 1 }, result => {
             if (result == null) return;
-            turn = result.turn; finished = result.decision != "pending";
+            turn = result.turn; finished = turn >= 5 || result.decision != "pending";
+            exitDenied = result.decision == "deny";
+            exitAllowed = result.decision == "allow" && result.door_open;
             transcript += "\nSen: " + message + "\nRobot: " + result.reply + "\n";
-            draft = ""; status = "Konuşma: " + turn + "/5";
-            scroll.y = float.MaxValue;
-            focusMessage = true;
+            draft = ""; status = finished ? "Görüşme tamamlandı — 5/5" : "Konuşma: " + turn + "/5";
+            scrollToBottom = true;
+            focusMessage = !finished;
             onReply.Invoke(result.reply);
-            if (result.decision == "allow" && result.door_open) onDoorOpen.Invoke();
-            else if (result.decision == "deny") onDoorDenied.Invoke();
+            if (result.decision == "deny") onDoorDenied.Invoke();
+            // Son yanıt beklenirken pencere kapatılmışsa sonuç geldiğinde bitişi uygula.
+            if (finished && !showTestPanel) CloseConversation();
         });
         busy = false;
     }
     void OnGUI()
     {
+        if (escaping) { DrawEscape(); return; }
+        if (gameOver) { DrawGameOver(); return; }
         if (!showTestPanel) return;
         EnsureStyles();
         var inputEvent = Event.current;
+        // Oklar mesaj alanı odaktayken de geçmişi kaydırır; metin imlecine gitmez.
+        if (inputEvent.type == EventType.KeyDown
+            && (inputEvent.keyCode == KeyCode.UpArrow || inputEvent.keyCode == KeyCode.DownArrow))
+            inputEvent.Use();
         if (inputEvent.type == EventType.KeyDown
             && (inputEvent.keyCode == KeyCode.Return || inputEvent.keyCode == KeyCode.KeypadEnter)
             && GUI.GetNameOfFocusedControl() == "GemmaMessage" && !busy && !finished)
@@ -184,24 +213,188 @@ public class LabRobotClient : MonoBehaviour
         GUILayout.Space(8);
         scroll = GUILayout.BeginScrollView(scroll, GUILayout.ExpandHeight(true));
         GUILayout.Label(string.IsNullOrEmpty(transcript) ? "Konuşmaya başlamak için mesajını yaz." : transcript, bodyStyle);
+        Rect historyContent = GUILayoutUtility.GetLastRect();
         GUILayout.EndScrollView();
+        Rect historyViewport = GUILayoutUtility.GetLastRect();
+        if (Event.current.type == EventType.Repaint)
+        {
+            maxScroll = Mathf.Max(0, historyContent.height - historyViewport.height + 12);
+            scroll.y = scrollToBottom ? maxScroll : Mathf.Clamp(scroll.y, 0, maxScroll);
+            scrollToBottom = false;
+        }
         GUILayout.Space(8);
-        GUI.enabled = !busy;
-        GUILayout.BeginHorizontal();
+        if (finished)
+            GUILayout.Label("Beş konuşma hakkın bitti. Yukarı/aşağı oklarıyla geçmişi inceleyebilirsin.", hintStyle);
+        else
+        {
         GUILayout.Label("Mesajın", hintStyle);
-        if (GUILayout.Button("Yeni oyun", buttonStyle, GUILayout.Width(100), GUILayout.Height(26))) NewGame();
-        GUILayout.EndHorizontal();
         GUI.enabled = !busy && !finished;
         GUILayout.BeginHorizontal();
         GUI.SetNextControlName("GemmaMessage");
-        draft = GUILayout.TextField(draft, 400, inputStyle, GUILayout.Height(34));
+        // Sabit genişlik, uzun metnin Gönder butonunu sağa itmesini engeller.
+        // Tek satırlı TextField imleci görünür tutmak için içeriği yatay kaydırır.
+        float messageWidth = Mathf.Max(40, width - 36 - 100 - 4);
+        draft = GUILayout.TextField(draft, 400, inputStyle,
+            GUILayout.Width(messageWidth), GUILayout.MinWidth(0), GUILayout.Height(34));
         if (focusMessage && Event.current.type == EventType.Repaint)
         { GUI.FocusControl("GemmaMessage"); focusMessage = false; }
         if (GUILayout.Button("Gönder ↵", buttonStyle, GUILayout.Width(100), GUILayout.Height(34))) SendMessageToRobot(draft);
         GUILayout.EndHorizontal();
         GUI.enabled = true;
+        }
         GUILayout.EndArea();
         GUI.color = oldColor;
+    }
+    bool PrepareExitDoor()
+    {
+        if (upperDoorHinge != null && lowerDoorHinge != null) return true;
+        var source = GameObject.Find("Floor 2 exit door");
+        if (source == null) return false;
+        var renderer = source.GetComponent<SpriteRenderer>();
+        if (renderer == null) return false;
+        Vector3 center = renderer.bounds.center;
+        Vector3 size = renderer.bounds.size;
+        var face = GameObject.Find("Floor 2 exit door face");
+        var faceRenderer = face != null ? face.GetComponent<SpriteRenderer>() : null;
+        upperDoorHinge = CreateDoorLeaf("Exit upper door", source.transform.parent,
+            center + Vector3.up*size.y*.5f, -1, size, renderer, faceRenderer);
+        lowerDoorHinge = CreateDoorLeaf("Exit lower door", source.transform.parent,
+            center - Vector3.up*size.y*.5f, 1, size, renderer, faceRenderer);
+        source.SetActive(false);
+        if (face != null) face.SetActive(false);
+        return true;
+    }
+    static Transform CreateDoorLeaf(string name, Transform parent, Vector3 hingePosition,
+        float direction, Vector3 size, SpriteRenderer source, SpriteRenderer face)
+    {
+        var hinge = new GameObject(name + " hinge").transform;
+        hinge.SetParent(parent, false);
+        hinge.position = hingePosition;
+        var leaf = new GameObject(name);
+        leaf.transform.SetParent(hinge, false);
+        leaf.transform.localPosition = new Vector3(0,direction*size.y*.25f,0);
+        leaf.transform.localScale = new Vector3(size.x,size.y*.5f,1);
+        var visual = leaf.AddComponent<SpriteRenderer>();
+        visual.sprite = source.sprite; visual.color = source.color;
+        visual.sortingLayerID = source.sortingLayerID; visual.sortingOrder = source.sortingOrder;
+        var collider = leaf.AddComponent<BoxCollider2D>();
+        collider.size = Vector2.one;
+        if (face != null)
+        {
+            var trim = new GameObject(name + " face");
+            trim.transform.SetParent(hinge,false);
+            trim.transform.localPosition = new Vector3(face.bounds.center.x-hingePosition.x,
+                direction*size.y*.25f,0);
+            trim.transform.localScale = new Vector3(face.bounds.size.x,face.bounds.size.y*.5f,1);
+            var trimVisual = trim.AddComponent<SpriteRenderer>();
+            trimVisual.sprite = face.sprite; trimVisual.color = face.color;
+            trimVisual.sortingLayerID = face.sortingLayerID; trimVisual.sortingOrder = face.sortingOrder;
+        }
+        return hinge;
+    }
+    IEnumerator EscapeSequence()
+    {
+        // Aynı saatten ilerler; ekran kapıdan en az 1,5 saniye sonra tamamlanır.
+        float doorDuration = Mathf.Max(.5f,doorOpeningSeconds);
+        float fadeDuration = Mathf.Max(doorDuration+1.5f,escapeFadeSeconds);
+        float elapsed = 0;
+        while (elapsed < fadeDuration)
+        {
+            elapsed = Mathf.Min(fadeDuration,elapsed+Time.unscaledDeltaTime);
+            float opening = Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/doorDuration));
+            upperDoorHinge.localRotation = Quaternion.Euler(0,0,-85*opening);
+            lowerDoorHinge.localRotation = Quaternion.Euler(0,0,85*opening);
+            escapeFade = Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/fadeDuration));
+            yield return null;
+        }
+        escapeFade = 1;
+        escaped = true;
+    }
+    void DrawEscape()
+    {
+        int oldDepth = GUI.depth;
+        Color oldColor = GUI.color;
+        GUI.depth = -10000;
+        GUI.color = new Color(236f/255f,245f/255f,253f/255f,escapeFade);
+        GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        if (escaped)
+        {
+            var style = new GUIStyle(GUI.skin.label) {
+                alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = true,
+                fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height*.075f),24,64)
+            };
+            StableLabel(style,new Color32(28,43,57,255));
+            var message = new GUIContent("Tebrikler başardınız");
+            float textWidth = Mathf.Max(1,Screen.width-48);
+            float textHeight = style.CalcHeight(message,textWidth);
+            float heartSize = Mathf.Clamp(Screen.height*.22f,80,180);
+            float gap = 20;
+            float top = (Screen.height-textHeight-gap-heartSize)*.5f;
+            GUI.Label(new Rect(24,top,textWidth,textHeight),message,style);
+            if (successHeart == null) successHeart = CreateSuccessHeart();
+            GUI.DrawTexture(new Rect((Screen.width-heartSize)*.5f,top+textHeight+gap,
+                heartSize,heartSize),successHeart);
+        }
+        GUI.color = oldColor;
+        GUI.depth = oldDepth;
+    }
+    static Texture2D CreateSuccessHeart()
+    {
+        // Kalbi şekil olarak çiz: yazı tipinin emoji desteğine bağlı değildir.
+        const int size = 192;
+        var texture = new Texture2D(size,size,TextureFormat.RGBA32,false) {
+            hideFlags = HideFlags.HideAndDontSave,
+            filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp
+        };
+        var pixels = new Color[size*size];
+        for (int y=0; y<size; y++)
+            for (int x=0; x<size; x++)
+            {
+                int inside = 0;
+                for (int sy=0; sy<2; sy++)
+                    for (int sx=0; sx<2; sx++)
+                    {
+                        float px = ((x+(sx+.5f)/2)/size)*2.6f-1.3f;
+                        float py = ((y+(sy+.5f)/2)/size)*2.6f-1.2f;
+                        float a = px*px+py*py-1;
+                        if (a*a*a-px*px*py*py*py <= 0) inside++;
+                    }
+                Color pink = new Color32(245,139,181,255); // #F58BB5
+                pink.a = inside/4f;
+                pixels[y*size+x] = pink;
+            }
+        texture.SetPixels(pixels); texture.Apply();
+        return texture;
+    }
+    void DrawGameOver()
+    {
+        int oldDepth = GUI.depth;
+        Color oldColor = GUI.color;
+        GUI.depth = -10000;
+        GUI.color = new Color32(16,20,25,255);
+        GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        float availableWidth = Mathf.Max(1, Screen.width - 32);
+        var heading = new GUIStyle(GUI.skin.label) {
+            alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
+            wordWrap = true, fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height*.085f),24,72)
+        };
+        StableLabel(heading, Color.white);
+        var subtitle = new GUIStyle(heading) {
+            fontStyle = FontStyle.Normal, fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height*.045f),18,38)
+        };
+        StableLabel(subtitle, Color.white);
+        var title = new GUIContent("Oyun bitti");
+        var reason = new GUIContent("Çıkış yapamadın");
+        float titleHeight = heading.CalcHeight(title, availableWidth);
+        float reasonHeight = subtitle.CalcHeight(reason, availableWidth);
+        float gap = 12;
+        float top = (Screen.height-titleHeight-reasonHeight-gap)*.5f;
+        GUI.Label(new Rect(16,top,availableWidth,titleHeight),title,heading);
+        GUI.Label(new Rect(16,top+titleHeight+gap,availableWidth,reasonHeight),reason,subtitle);
+        GUI.color = oldColor;
+        GUI.depth = oldDepth;
     }
     void EnsureStyles()
     {
@@ -211,12 +404,15 @@ public class LabRobotClient : MonoBehaviour
         hoverBackground = Bordered(new Color32(207, 222, 237, 255));
         Color ink = new Color32(28, 43, 57, 255);
         titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 21, fontStyle = FontStyle.Bold };
-        titleStyle.normal.textColor = ink;
+        StableLabel(titleStyle, ink);
         bodyStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, richText = false };
-        bodyStyle.normal.textColor = ink;
+        StableLabel(bodyStyle, ink);
         hintStyle = new GUIStyle(bodyStyle) { fontSize = 12 };
-        hintStyle.normal.textColor = new Color32(86, 102, 117, 255);
-        inputStyle = new GUIStyle(GUI.skin.textField) { fontSize = 14, padding = new RectOffset(10,10,8,6) };
+        StableLabel(hintStyle, new Color32(86, 102, 117, 255));
+        inputStyle = new GUIStyle(GUI.skin.textField) {
+            fontSize = 14, padding = new RectOffset(10,10,8,6),
+            wordWrap = false, clipping = TextClipping.Clip, alignment = TextAnchor.MiddleLeft
+        };
         buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
         buttonStyle.border = new RectOffset(1,1,1,1);
         foreach (var s in new[] { inputStyle.normal, inputStyle.hover, inputStyle.active, inputStyle.focused })
@@ -225,6 +421,12 @@ public class LabRobotClient : MonoBehaviour
         { s.textColor = ink; s.background = buttonBackground; s.scaledBackgrounds = null; }
         foreach (var s in new[] { buttonStyle.hover, buttonStyle.active })
         { s.textColor = ink; s.background = hoverBackground; s.scaledBackgrounds = null; }
+    }
+    static void StableLabel(GUIStyle style, Color color)
+    {
+        foreach (var state in new[] { style.normal, style.hover, style.active, style.focused,
+                                      style.onNormal, style.onHover, style.onActive, style.onFocused })
+        { state.textColor = color; state.background = null; state.scaledBackgrounds = null; }
     }
     static Texture2D Bordered(Color fill)
     {
@@ -249,5 +451,6 @@ public class LabRobotClient : MonoBehaviour
         if (fieldBackground != null) Destroy(fieldBackground);
         if (buttonBackground != null) Destroy(buttonBackground);
         if (hoverBackground != null) Destroy(hoverBackground);
+        if (successHeart != null) Destroy(successHeart);
     }
 }
