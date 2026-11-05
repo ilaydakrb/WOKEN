@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace Woken.UI
 {
-    /// <summary>Opens the QWEN notebook found in the second-floor hidden drawer.</summary>
+    /// <summary>Opens the Gemma notebook found in the second-floor hidden drawer.</summary>
     public sealed class HiddenDrawerNotebookUI : MonoBehaviour
     {
         private Transform player;
@@ -69,7 +69,7 @@ namespace Woken.UI
 
         private void BuildUI()
         {
-            GameObject canvasObject = new GameObject("QWEN notebook canvas",
+            GameObject canvasObject = new GameObject("Gemma notebook canvas",
                 typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -86,7 +86,7 @@ namespace Woken.UI
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = .5f;
 
-            panel = new GameObject("QWEN notebook", typeof(RectTransform), typeof(Image), typeof(Outline));
+            panel = new GameObject("Gemma notebook", typeof(RectTransform), typeof(Image), typeof(Outline));
             RectTransform panelRect = panel.GetComponent<RectTransform>();
             panelRect.SetParent(canvasRect, false);
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(.5f, .5f);
@@ -97,13 +97,13 @@ namespace Woken.UI
             outline.effectColor = new Color32(48, 52, 47, 255);
             outline.effectDistance = new Vector2(4f, -4f);
 
-            Button close = CreateButton("Close QWEN notebook", panelRect,
+            Button close = CreateButton("Close Gemma notebook", panelRect,
                 new Vector2(48f, 48f), new Vector2(474f, 306f), Red);
-            CreateText("Close QWEN notebook label", close.transform, "×", 34, Color.white,
+            CreateText("Close Gemma notebook label", close.transform, "×", 34, Color.white,
                 Vector2.zero, new Vector2(48f, 48f), TextAnchor.MiddleCenter);
             close.onClick.AddListener(CloseBook);
 
-            coverView = new GameObject("QWEN notebook cover", typeof(RectTransform), typeof(Image), typeof(Outline));
+            coverView = new GameObject("Gemma notebook cover", typeof(RectTransform), typeof(Image), typeof(Outline));
             RectTransform coverRect = coverView.GetComponent<RectTransform>();
             coverRect.SetParent(panelRect, false);
             coverRect.anchorMin = coverRect.anchorMax = new Vector2(.5f, .5f);
@@ -114,17 +114,17 @@ namespace Woken.UI
             Outline coverOutline = coverView.GetComponent<Outline>();
             coverOutline.effectColor = new Color32(61, 42, 31, 255);
             coverOutline.effectDistance = new Vector2(3f, -3f);
-            CreateText("Notebook cover title", coverRect, "QWEN", 62, new Color32(247, 223, 164, 255),
+            CreateText("Notebook cover title", coverRect, "GEMMA", 62, new Color32(247, 223, 164, 255),
                 new Vector2(0f, 42f), new Vector2(570f, 110f), TextAnchor.MiddleCenter);
             CreateText("Notebook cover subtitle", coverRect, "LABORATUVAR NOTLARI", 25, new Color32(239, 229, 208, 255),
                 new Vector2(0f, -45f), new Vector2(570f, 60f), TextAnchor.MiddleCenter);
-            Button open = CreateButton("Open QWEN notebook", coverRect,
+            Button open = CreateButton("Open Gemma notebook", coverRect,
                 new Vector2(270f, 66f), new Vector2(0f, -155f), new Color32(222, 204, 165, 255));
             CreateText("Open notebook label", open.transform, "Defteri Aç", 27, Ink,
                 Vector2.zero, new Vector2(270f, 66f), TextAnchor.MiddleCenter);
             open.onClick.AddListener(OpenPages);
 
-            pagesView = new GameObject("QWEN notebook pages", typeof(RectTransform), typeof(Image));
+            pagesView = new GameObject("Gemma notebook pages", typeof(RectTransform), typeof(Image));
             RectTransform pagesRect = pagesView.GetComponent<RectTransform>();
             pagesRect.SetParent(panelRect, false);
             pagesRect.anchorMin = pagesRect.anchorMax = new Vector2(.5f, .5f);
@@ -133,13 +133,13 @@ namespace Woken.UI
             pagesRect.anchoredPosition = new Vector2(0f, -12f);
             pagesView.GetComponent<Image>().color = Paper;
 
-            CreateText("Notebook page heading", pagesRect, "QWEN HAKKINDA", 32, Ink,
+            CreateText("Notebook page heading", pagesRect, "GEMMA HAKKINDA", 32, Ink,
                 new Vector2(0f, 220f), new Vector2(840f, 54f), TextAnchor.MiddleCenter);
             CreateText("Notebook page text", pagesRect,
-                "QWEN, laboratuvarın güvenlik kapısını yöneten yapay zekâdır. Onu ikna etmek kolay değildir.\n\nLaboratuvardan çıkabilmek için QWEN'i ikna etmen çok önemli. Onunla konuşurken ne istediğini açıkça anlat ve sorularına dikkatle cevap ver.\n\nQWEN ikna olmazsa güvenlik kapısı açılmaz; laboratuvardan çıkış yolu kapalı kalır.",
+                "Gemma, laboratuvarın güvenlik kapısını yöneten yapay zekâdır. Onu ikna etmek kolay değildir.\n\nLaboratuvardan çıkabilmek için Gemma'yı ikna etmen çok önemli. Onunla konuşurken ne istediğini açıkça anlat ve sorularına dikkatle cevap ver.\n\nGemma ikna olmazsa güvenlik kapısı açılmaz; laboratuvardan çıkış yolu kapalı kalır.",
                 27, Ink, new Vector2(0f, 20f), new Vector2(820f, 350f), TextAnchor.MiddleLeft);
             CreateText("Notebook red note", pagesRect,
-                "NOT: Kibar olman çok önemli! QWEN'le saygılı ve nazik bir şekilde konuş.",
+                "NOT: Kibar olman çok önemli! Gemma'yla saygılı ve nazik bir şekilde konuş.",
                 27, Red, new Vector2(0f, -200f), new Vector2(820f, 78f), TextAnchor.MiddleCenter);
 
             coverView.SetActive(false);

@@ -13,6 +13,7 @@ namespace Woken.UI
     /// <summary>Opening dialogue and automatic elevator guidance for the robot.</summary>
     public sealed class RobotRouteGuideUI : MonoBehaviour
     {
+        private const float MinimumStatusDuration = 3f;
         private const string OpeningMessage = "Sonunda uyandın. Bu terk edilmiş laboratuvardan acilen çıkmamız lazım. Acele et.";
         private const string DepartureMessage = "Hadi hızlı ol, hemen asansörle çıkmalıyız buradan. Takip et beni.";
         private static Sprite panelSprite;
@@ -57,6 +58,7 @@ namespace Woken.UI
         private float depotNearSince = -1f;
         private bool batteryHelpDialogueShown;
         private float batteryNearSince = -1f;
+        private bool batteryDepotHintShown;
         private bool resumeFollowAfterStatus;
         private Coroutine statusRoutine;
         private Coroutine introRoutine;
@@ -205,8 +207,9 @@ namespace Woken.UI
                 ShowStatus("Oraya ulaşamıyorum; yol kapalı görünüyor.", true);
         }
 
-        private void ShowStatus(string message, bool resumeFollowAfterDelay = false, float displayDuration = 2f)
+        private void ShowStatus(string message, bool resumeFollowAfterDelay = false, float displayDuration = MinimumStatusDuration)
         {
+            displayDuration = Mathf.Max(displayDuration, MinimumStatusDuration);
             StopStatusRoutine(false);
             resumeFollowAfterStatus = false;
             if (canvas != null && !canvas.gameObject.activeSelf)
@@ -227,6 +230,7 @@ namespace Woken.UI
 
         private void ShowStatusTemporarily(string message, float duration)
         {
+            duration = Mathf.Max(duration, MinimumStatusDuration);
             ShowStatus(message);
             StartCoroutine(HideStatusMessageAfterDelay(message, duration));
         }
@@ -339,8 +343,24 @@ namespace Woken.UI
             ShowStatus(
                 "Bataryayı taşıyabilmem için enerjim yetmez. Bazı parçalarımı değiştirmen gerekli; ancak sana o zaman yardım edebilirim.",
                 true,
-                5f);
+                3f);
         }
+
+        public void ShowBatteryDepotHintAfterElevatorError()
+        {
+            if (batteryDepotHintShown)
+                return;
+
+            batteryDepotHintShown = true;
+            StartCoroutine(ShowBatteryDepotHintAfterDelay());
+        }
+
+        private IEnumerator ShowBatteryDepotHintAfterDelay()
+        {
+            yield return new WaitForSeconds(2f);
+            ShowStatus("Batarya bu odanın yukarısındaki depoda gibi görünüyor.", true, 3f);
+        }
+
         private void UpdateSecondFloorCabinetHelp()
         {
             if (secondFloorCabinetHelpShown || secondFloorCabinetHelpRoutine != null
@@ -514,7 +534,7 @@ namespace Woken.UI
             ShowStatus("Aa, bunun için girişte gördüğümüz basamağı kullanabiliriz.");
             yield return new WaitForSeconds(3f);
             ShowStatus("Beni burada bekle, getireceğim.");
-            yield return new WaitForSeconds(2.5f);
+            yield return new WaitForSeconds(3f);
             HidePopups();
 
             Vector2 pickupPoint = (Vector2)secondFloorEntryStep.position + Vector2.down * .92f;
@@ -736,12 +756,12 @@ namespace Woken.UI
 
         public void ShowBatteryInstallPrompt()
         {
-            ShowStatus("Bataryayı yerine koyabilirim. T tuşuna bas.", true, 2f);
+            ShowStatus("Bataryayı yerine koyabilirim. T tuşuna bas.", true, 3f);
         }
 
         private IEnumerator GoPickUpBatteryAfterDelay()
         {
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(3f);
             if (statusPanel != null)
                 statusPanel.gameObject.SetActive(false);
 

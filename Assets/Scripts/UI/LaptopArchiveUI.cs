@@ -28,11 +28,11 @@ namespace Woken.UI
         private static readonly Color FolderColor = new Color32(247, 174, 77, 255);
         private static readonly Color PaperColor = new Color32(247, 248, 244, 255);
 
-        private readonly string[] reportNames = { "QWEN.4", "QWEN.1", "QWEN.3", "QWEN.4" };
+        private readonly string[] reportNames = { "GEMMA.4", "GEMMA.1", "GEMMA.3", "GEMMA.4" };
         private readonly string[] reportText =
         {
             "KOL AKTÜATÖRÜ / KALİBRASYON\nSonuç: ONAYLANDI.\n\nTutucu kolun yeni denge ayarı laboratuvar kapısındaki eski yedek kilitle eşleşti. Rapor etiketini değiştirmeyin; arşiv sırası korunmalı.",
-            "OPTİK SENSÖR / HİZALAMA\nSonuç: ONAYLANDI.\n\nQWEN, kuzey tezgâhındaki ışık ölçümünü yeniden yaptı. Tek numaralı profil, giriş panelindeki ilk kontağı doğru okudu.",
+            "OPTİK SENSÖR / HİZALAMA\nSonuç: ONAYLANDI.\n\nGemma, kuzey tezgâhındaki ışık ölçümünü yeniden yaptı. Tek numaralı profil, giriş panelindeki ilk kontağı doğru okudu.",
             "GÜÇ HATTI / KARARLILIK\nSonuç: ONAYLANDI.\n\nÜçüncü deney konfigürasyonunda enerji aktarımı kesintisiz kaldı. Eski notta, yedek kilit dizisinin deney kayıtlarından üretildiği yazıyor.",
             "SON DOĞRULAMA / TUTUCU KOL\nSonuç: ONAYLANDI.\n\nAynı kol kalibrasyonu son kontrolde yeniden kabul edildi. Kayıt tekrarını atlamayın; kilit yedeği raporların görünen sırasını izliyor."
         };
@@ -198,7 +198,7 @@ namespace Woken.UI
                 "Deney Robotları", 23, Ink,
                 new Vector2(20f, 170f), new Vector2(700f, 42f), TextAnchor.MiddleLeft);
             CreateNoteCard("Deney arşivi notu", contentRoot,
-                "Depo kilidinin yedeği, onaylı QWEN deney raporlarından oluşturuldu. Raporları bu klasörde göründükleri sırayla incele; dosya etiketleri deney kimliğini taşır. Kişisel notlar ve reddedilen taslaklar kilit dizisine dahil değildir.",
+                "Depo kilidinin yedeği, onaylı Gemma deney raporlarından oluşturuldu. Raporları bu klasörde göründükleri sırayla incele; dosya etiketleri deney kimliğini taşır. Kişisel notlar ve reddedilen taslaklar kilit dizisine dahil değildir.",
                 new Vector2(0f, 105f), new Vector2(790f, 90f));
 
             for (int i = 0; i < reportNames.Length; i++)
@@ -206,7 +206,7 @@ namespace Woken.UI
                 int reportIndex = i;
                 float x = (i % 2 == 0) ? -195f : 195f;
                 float y = i < 2 ? -5f : -125f;
-                CreateFileCard(reportNames[i], new Vector2(x, y),
+                CreateCompactFileCard(reportNames[i], new Vector2(x, y),
                     () => ShowReport(reportIndex));
             }
         }
@@ -234,7 +234,7 @@ namespace Woken.UI
             pathText.text = "Arşiv / Laboratuvar Notları";
             CreateBackButton(ShowHome);
             CreateDocumentView("Vardiya günlüğü",
-                "Gece vardiyası notu:\n\nKuzey tezgâhındaki eski laptop hâlâ açılıyor. Depo kapısının kontrol paneli bağlantısız kaldı. QWEN test raporlarını silmeyin; bakım ekibi yedek anahtarı bu kayıtlardan oluşturmuştu.\n\nKahve makinesi yine çalışmıyor. Numune teslimi sabah vardiyasına bırakıldı.");
+                "Gece vardiyası notu:\n\nKuzey tezgâhındaki eski laptop hâlâ açılıyor. Depo kapısının kontrol paneli bağlantısız kaldı. Gemma test raporlarını silmeyin; bakım ekibi yedek anahtarı bu kayıtlardan oluşturmuştu.\n\nKahve makinesi yine çalışmıyor. Numune teslimi sabah vardiyasına bırakıldı.");
         }
 
         private void CreateFolderCard(string label, Vector2 position, Action onClick)
@@ -259,10 +259,22 @@ namespace Woken.UI
 
         private void CreateFileCard(string label, Vector2 position, Action onClick)
         {
+            CreateFileCard(label, position, onClick, new Vector2(250f, 210f), false);
+        }
+
+        private void CreateCompactFileCard(string label, Vector2 position, Action onClick)
+        {
+            CreateFileCard(label, position, onClick, new Vector2(170f, 100f), true);
+        }
+
+        private void CreateFileCard(string label, Vector2 position, Action onClick,
+            Vector2 cardSize, bool compact)
+        {
             Button card = CreateCard("File " + label, contentRoot,
-                new Vector2(250f, 210f), position, onClick);
+                cardSize, position, onClick);
             Image page = CreateImage("Document icon", card.transform,
-                new Vector2(64f, 82f), new Vector2(0f, 38f), PaperColor);
+                compact ? new Vector2(38f, 48f) : new Vector2(64f, 82f),
+                compact ? new Vector2(0f, 20f) : new Vector2(0f, 38f), PaperColor);
             page.raycastTarget = false;
             Outline outline = page.gameObject.AddComponent<Outline>();
             outline.effectColor = Ink;
@@ -273,8 +285,9 @@ namespace Woken.UI
             Image line2 = CreateImage("Document line", page.transform,
                 new Vector2(38f, 4f), new Vector2(0f, 0f), new Color32(105, 139, 157, 255));
             line2.raycastTarget = false;
-            CreateText("Document label", card.transform, label, 24, Ink,
-                new Vector2(0f, -68f), new Vector2(235f, 56f), TextAnchor.MiddleCenter);
+            CreateText("Document label", card.transform, label, compact ? 18 : 24, Ink,
+                compact ? new Vector2(0f, -29f) : new Vector2(0f, -68f),
+                compact ? new Vector2(156f, 32f) : new Vector2(235f, 56f), TextAnchor.MiddleCenter);
         }
 
         private void CreateDocumentView(string title, string body)

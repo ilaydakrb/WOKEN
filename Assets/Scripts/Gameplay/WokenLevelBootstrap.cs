@@ -19,8 +19,7 @@ namespace Woken.Gameplay
         private static Sprite buttonCircleSprite;
         private const float SecondFloorOffsetX = 32f;
 
-        // Temporary testing switch: set false to restore the battery requirement.
-        private const bool BypassElevatorBatteryForFloorTesting = true;
+        private const bool BypassElevatorBatteryForFloorTesting = false;
 
         private Transform player;
         private Transform robot;
@@ -48,6 +47,7 @@ namespace Woken.Gameplay
         private float elevatorPromptHideAt;
         private Transform elevatorServicePanel;
         private WorldObjectNameUI worldObjectNameUI;
+        private RobotRouteGuideUI robotRouteGuide;
         private float elevatorPanelNearSince = -1f;
         private bool elevatorPanelMessageShown;
         private bool wasNearControlPanel;
@@ -195,6 +195,8 @@ namespace Woken.Gameplay
                         "Batarya yuvası boş, asansör çalışamıyor.",
                         new Vector3(13.82f, -2.65f, 0f),
                         2f);
+                if (robotRouteGuide != null)
+                    robotRouteGuide.ShowBatteryDepotHintAfterElevatorError();
                 return;
             }
 
@@ -225,6 +227,8 @@ namespace Woken.Gameplay
                     "Batarya yuvası boş, asansör çalışamıyor.",
                     elevatorServicePanel.position + Vector3.up * .7f,
                     2f);
+            if (robotRouteGuide != null)
+                robotRouteGuide.ShowBatteryDepotHintAfterElevatorError();
             elevatorPanelMessageShown = true;
         }
         private void CacheControlPanelObjects()
@@ -510,7 +514,7 @@ namespace Woken.Gameplay
             }
 
             yield return StartCoroutine(AnimateElevatorDoors(
-                firstFloorNorthDoor, firstFloorSouthDoor, true, 0.9f));
+                firstFloorNorthDoor, firstFloorSouthDoor, true, 1.8f));
 
             GameObject fog = GameObject.Find("Unexplored areas");
             if (fog != null)
@@ -521,16 +525,16 @@ namespace Woken.Gameplay
                 routeCanvas.SetActive(false);
 
             Coroutine playerCrossing = StartCoroutine(MoveActorTo(
-                playerBody, playerAnimator, new Vector2(19.25f, -4f), 6f));
+                playerBody, playerAnimator, new Vector2(19.25f, -4f), 15f));
             Coroutine robotCrossing = StartCoroutine(MoveActorTo(
-                robotBody, robotAnimator, new Vector2(18.45f, -4f), 6f));
+                robotBody, robotAnimator, new Vector2(18.45f, -4f), 15f));
             yield return playerCrossing;
             yield return robotCrossing;
             if (ignoredActorCollision)
                 Physics2D.IgnoreCollision(playerCollider, robotCollider, false);
 
             yield return StartCoroutine(AnimateElevatorDoors(
-                firstFloorNorthDoor, firstFloorSouthDoor, false, 0.8f));
+                firstFloorNorthDoor, firstFloorSouthDoor, false, 1.6f));
             activeFloor = 2;
             Physics2D.SyncTransforms();
 
@@ -1307,14 +1311,14 @@ namespace Woken.Gameplay
                 new Vector2(.14f, 2.6f), new Color32(67, 82, 85, 255), 0, true, root);
             if (roomObjectNames != null)
             {
-                RegisterSecondFloorClickLabel(roomObjectNames, "Room 5 QWEN click area",
+                RegisterSecondFloorClickLabel(roomObjectNames, "Room 5 Gemma click area",
                     new Vector2(10.9f, -5.25f), new Vector2(.9f, 1.35f),
-                    "QWEN", Vector3.up * .75f);
+                    "Gemma", Vector3.up * .75f);
 
                 Transform qwenDesk = root.Find("Floor 2 room 5 control desk body");
                 Collider2D qwenDeskCollider = qwenDesk != null ? qwenDesk.GetComponent<Collider2D>() : null;
                 if (qwenDeskCollider != null)
-                    roomObjectNames.Register(qwenDeskCollider, "QWEN'in Masası",
+                    roomObjectNames.Register(qwenDeskCollider, "Gemma'nın Masası",
                         qwenDesk.position + Vector3.up * 1.05f);
 
                 Transform securityDevice = root.Find("Floor 2 room 5 cable trunk");
@@ -2355,8 +2359,8 @@ namespace Woken.Gameplay
 
             robotController.SetPlayer(player);
 
-            RobotRouteGuideUI routeGuide = gameObject.AddComponent<RobotRouteGuideUI>();
-            routeGuide.Initialize(player, robot, robotController, sceneCamera, firstFloorRoot.Find("Battery crate"),
+            robotRouteGuide = gameObject.AddComponent<RobotRouteGuideUI>();
+            robotRouteGuide.Initialize(player, robot, robotController, sceneCamera, firstFloorRoot.Find("Battery crate"),
                 secondFloorEntryStepRoot,
                 secondFloorRoot.Find("Floor 2 room 2 doorway cabinet"),
                 secondFloorRoot.Find("Floor 2 room 3 release panel button"),
