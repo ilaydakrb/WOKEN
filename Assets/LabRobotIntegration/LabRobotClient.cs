@@ -141,12 +141,29 @@ public class LabRobotClient : MonoBehaviour
             request.timeout = 600;
             yield return request.SendWebRequest();
             Result result = null;
-            try { result = JsonUtility.FromJson<Result>(request.downloadHandler.text); }
-            catch (Exception) { }
-            if (request.result != UnityWebRequest.Result.Success || result == null)
+            string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+            try
             {
-                string detail = result != null && !string.IsNullOrEmpty(result.error) ? result.error : request.error;
-                Debug.LogWarning("Robot API: " + detail);
+                if (!string.IsNullOrWhiteSpace(responseText))
+                    result = JsonUtility.FromJson<Result>(responseText);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("Robot API yanıtı çözümlenemedi: " + exception.Message, this);
+            }
+
+            bool requestFailed = request.result != UnityWebRequest.Result.Success;
+            bool serverReportedError = result != null && !string.IsNullOrWhiteSpace(result.error);
+            if (requestFailed || result == null || serverReportedError)
+            {
+                if (serverReportedError)
+                    status = result.error;
+                else if (requestFailed && !string.IsNullOrWhiteSpace(request.error))
+                    status = request.error;
+                else
+                    status = "Robot servisi boş veya geçersiz JSON yanıtı döndürdü.";
+
+                Debug.LogWarning("Robot API: " + status, this);
                 done(null);
             }
             else done(result);
@@ -157,9 +174,21 @@ public class LabRobotClient : MonoBehaviour
         busy = true;
         if (string.IsNullOrEmpty(sessionId))
         {
-            yield return Request("/session", new Payload(), r => { if (r != null) sessionId = r.session_id; });
+            yield return Request("/session", new Payload(), r =>
+            {
+                if (r != null && !string.IsNullOrWhiteSpace(r.session_id))
+                    sessionId = r.session_id;
+                else if (r != null)
+                    status = "Robot servisi geçerli bir oturum kimliği döndürmedi.";
+            });
             if (string.IsNullOrEmpty(sessionId))
-            { ShowRetryResponse(message); busy = false; yield break; }
+            {
+                if (string.IsNullOrWhiteSpace(status))
+                    status = "Robot servisine bağlanılamadı. Lütfen yeniden deneyin.";
+                ShowRetryResponse(message);
+                busy = false;
+                yield break;
+            }
         }
         status = "Robot düşünüyor…";
         yield return Request("/message", new Payload { session_id = sessionId, message = message, turn = turn + 1 }, result => {
@@ -177,6 +206,27 @@ public class LabRobotClient : MonoBehaviour
             if (finished && !showTestPanel) CloseConversation();
         });
         busy = false;
+    }
+    bool ValidMessageResult(Result result)
+    {
+        if (result == null || !string.IsNullOrEmpty(result.error)
+            || result.session_id != sessionId || string.IsNullOrWhiteSpace(result.reply)
+            || result.turn != turn + 1 || result.turn > 5
+            || result.remaining != 5 - result.turn) return false;
+        if (result.turn < 5)
+            return result.decision == "pending" && !result.door_open;
+        return (result.decision == "allow" && result.door_open)
+            || (result.decision == "deny" && !result.door_open);
+    }
+    void ShowRetryResponse(string message)
+    {
+        // This application fallback does not count as a model reply or conversation turn.
+        status = "Konuşma hakkın azalmadı. Kalan hak: " + (5 - turn) + "/5";
+        string reply = "Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?";
+        transcript += "\nSen: " + message + "\nRobot: " + reply + "\n";
+        scrollToBottom = true;
+        focusMessage = true;
+        onReply.Invoke(reply);
     }
     bool ValidMessageResult(Result result)
     {
@@ -440,15 +490,15 @@ public class LabRobotClient : MonoBehaviour
         foreach (var s in new[] { inputStyle.normal, inputStyle.hover, inputStyle.active, inputStyle.focused })
         { s.textColor = ink; s.background = fieldBackground; }
         foreach (var s in new[] { buttonStyle.normal, buttonStyle.focused })
-        { s.textColor = ink; s.background = buttonBackground; s.scaledBackgrounds = null; }
+        { s.textColor = ink; s.background = buttonBackground; }
         foreach (var s in new[] { buttonStyle.hover, buttonStyle.active })
-        { s.textColor = ink; s.background = hoverBackground; s.scaledBackgrounds = null; }
+        { s.textColor = ink; s.background = hoverBackground; }
     }
     static void StableLabel(GUIStyle style, Color color)
     {
         foreach (var state in new[] { style.normal, style.hover, style.active, style.focused,
                                       style.onNormal, style.onHover, style.onActive, style.onFocused })
-        { state.textColor = color; state.background = null; state.scaledBackgrounds = null; }
+        { state.textColor = color; state.background = null; }
     }
     static Texture2D Bordered(Color fill)
     {

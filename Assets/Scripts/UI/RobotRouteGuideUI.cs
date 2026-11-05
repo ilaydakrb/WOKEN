@@ -28,7 +28,7 @@ namespace Woken.UI
         private Transform robotOnlyPassageTrigger;
         private Transform room3DoorWest;
         private Transform room3DoorEast;
-        private RobotMovementController movement;
+        private IRobotMovementTasks movement;
         private Rigidbody2D robotBody;
         private CharacterAnimator robotAnimator;
         private Collider2D robotCollider;
@@ -70,7 +70,7 @@ namespace Woken.UI
         private bool room3DoorOpened;
         private Coroutine room3DoorRoutine;
 
-        public void Initialize(Transform playerTransform, Transform robotTransform, RobotMovementController robotMovement,
+        public void Initialize(Transform playerTransform, Transform robotTransform, IRobotMovementTasks robotMovement,
             Camera cameraToUse, Transform batterySourceTransform, Transform stepTransform = null,
             Transform destinationCabinetTransform = null, Transform powerButtonTransform = null,
             Transform passageTriggerTransform = null, Transform doorWestTransform = null,
@@ -445,7 +445,7 @@ namespace Woken.UI
 
             // NavMesh clearance is too narrow for the service slot, so guide the robot through it directly.
             movement.HoldPosition();
-            movement.enabled = false;
+            movement.SetMovementEnabled(false);
             if (robotAgent != null && robotAgent.enabled)
                 robotAgent.enabled = false;
             if (robotCollider != null)
@@ -511,7 +511,7 @@ namespace Woken.UI
                 robotAgent.enabled = true;
                 robotAgent.Warp(robotBody.position);
             }
-            movement.enabled = true;
+            movement.SetMovementEnabled(true);
             movement.ResumeFollowingPlayer();
             HidePopups();
             room3DoorRoutine = null;
@@ -643,7 +643,7 @@ namespace Woken.UI
         private IEnumerator AnimateRobotOverCabinet(Vector2 stepDropPoint, Bounds cabinetBounds)
         {
             movement.HoldPosition();
-            if (movement != null) movement.enabled = false;
+            if (movement != null) movement.SetMovementEnabled(false);
             if (robotAgent != null && robotAgent.enabled) robotAgent.enabled = false;
             if (robotCollider != null) robotCollider.enabled = false;
 
@@ -678,7 +678,7 @@ namespace Woken.UI
                 robotAgent.enabled = true;
                 if (robotBody != null) robotAgent.Warp(robotBody.position);
             }
-            if (movement != null) movement.enabled = true;
+            if (movement != null) movement.SetMovementEnabled(true);
         }
 
         private IEnumerator AnimateActorSegment(Transform actor, Rigidbody2D body,
