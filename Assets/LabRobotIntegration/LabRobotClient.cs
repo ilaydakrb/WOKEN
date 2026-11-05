@@ -145,8 +145,8 @@ public class LabRobotClient : MonoBehaviour
             catch (Exception) { }
             if (request.result != UnityWebRequest.Result.Success || result == null)
             {
-                status = result != null && !string.IsNullOrEmpty(result.error) ? result.error : request.error;
-                Debug.LogWarning("Robot API: " + status);
+                string detail = result != null && !string.IsNullOrEmpty(result.error) ? result.error : request.error;
+                Debug.LogWarning("Robot API: " + detail);
                 done(null);
             }
             else done(result);
@@ -158,11 +158,12 @@ public class LabRobotClient : MonoBehaviour
         if (string.IsNullOrEmpty(sessionId))
         {
             yield return Request("/session", new Payload(), r => { if (r != null) sessionId = r.session_id; });
-            if (string.IsNullOrEmpty(sessionId)) { busy = false; yield break; }
+            if (string.IsNullOrEmpty(sessionId))
+            { ShowRetryResponse(message); busy = false; yield break; }
         }
         status = "Robot düşünüyor…";
         yield return Request("/message", new Payload { session_id = sessionId, message = message, turn = turn + 1 }, result => {
-            if (result == null) return;
+            if (!ValidMessageResult(result)) { ShowRetryResponse(message); return; }
             turn = result.turn; finished = turn >= 5 || result.decision != "pending";
             exitDenied = result.decision == "deny";
             exitAllowed = result.decision == "allow" && result.door_open;
@@ -176,6 +177,27 @@ public class LabRobotClient : MonoBehaviour
             if (finished && !showTestPanel) CloseConversation();
         });
         busy = false;
+    }
+    bool ValidMessageResult(Result result)
+    {
+        if (result == null || !string.IsNullOrEmpty(result.error)
+            || result.session_id != sessionId || string.IsNullOrWhiteSpace(result.reply)
+            || result.turn != turn+1 || result.turn > 5
+            || result.remaining != 5-result.turn) return false;
+        if (result.turn < 5)
+            return result.decision == "pending" && !result.door_open;
+        return (result.decision == "allow" && result.door_open)
+            || (result.decision == "deny" && !result.door_open);
+    }
+    void ShowRetryResponse(string message)
+    {
+        // Uygulama hata karşılığıdır; model cevabı sayılmaz ve tur artırılmaz.
+        status = "Konuşma hakkın azalmadı. Kalan hak: " + (5-turn) + "/5";
+        string reply = "Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?";
+        transcript += "\nSen: " + message + "\nRobot: " + reply + "\n";
+        scrollToBottom = true;
+        focusMessage = true;
+        onReply.Invoke(reply);
     }
     void OnGUI()
     {
