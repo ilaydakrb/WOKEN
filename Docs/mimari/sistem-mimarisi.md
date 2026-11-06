@@ -37,7 +37,11 @@ stateDiagram-v2
     StayAtDestination --> MoveToTaskTarget: Yeni görev hedefi başladı
 ```
 
-Takibe dönüş, görev başlatıcısının `resumeFollowing` ayarına bağlıdır. Robot testi oynanış içinde işlevsel olarak kontrol edildi; farklı başlangıç koşullarındaki deneme sayısı, başarı oranı ve ortalama süre ölçülmedi.
+Takibe dönüş, görev başlatıcısının `resumeFollowing` ayarına bağlıdır.
+
+**NavMesh ölçümleri — 6 Kasım 2026:** Gerçek Unity Play modunda üç başlangıç konumu ve iki hedef için üçer tekrar yapıldı (18 deneme). `RobotMovementController.StartMoveTask` ile fiziksel hareket ve görev sonucu ölçüldü. 14 deneme başarılı, 4 deneme `NoRoute` ile başarısız oldu; başarı oranı **%77,78**, yalnız başarılı denemelerde ortalama hedefe ulaşma süresi **2,01 saniye** olarak hesaplandı. Başarısız denemeler süre ortalamasına dahil edilmedi.
+
+Ölçüm statik geometride, diğer görev/UI davranışları ve oyuncu fiziği test için durdurularak yapıldı; tüm oyunun veya script ile yürütülen özel engel geçişlerinin başarı oranı değildir. Kalıcı sahne başlangıcı ve hareket kodu değiştirilmedi. Ayrıntılı yöntem ve koşul bazlı sonuçlar [README'nin NavMesh ölçüm bölümünde](../../README.md#navmesh-ölçüm-sonuçları--6-kasım-2026), deneme kayıtları [ham JSON dosyasında](../testler/navmesh-olcum-sonuclari.json) bulunur.
 
 ## 4. LLM İletişimi ve Kapı Kararı
 
@@ -210,13 +214,11 @@ Bağlamın bellek kullanımına etkisi ve CPU/GPU yerleşiminin `ollama ps` ile 
 
 ## 5. Hata Yönetimi ve Test Sınırı
 
-`LabRobotClient`, başarısız HTTP bağlantısını, sunucunun `error` alanını, boş/bozuk JSON'u ve eksik/tutarsız karar alanlarını normal oyun cevabı olarak kabul etmez. Uygulama hata karşılığını gösterir ve turu artırmaz. `busy` normal cevapta veya ele alınan hatada kaldırılır; geçerli cevap olmadan kapı olayı uygulanmaz. Python tarafında başarısız model isteğinde geçmiş ve kayıtlar korunur.
+`LabRobotClient`, ağ/model hatalarını robot repliği olarak sunmak yerine ayrı “Robot bağlantı uyarısı” penceresinde gösterir. Başarısızlığı doğrulanmış istekte hak korunur; yanıtın kaybolduğu belirsiz durumda ise önceki işlemin durumu doğrulanmadan yeni mesaj gönderilmez. Uyarı Tamam/Esc ile kapanır; taslak korunur.
 
-6 Kasım 2026'da iki ayrı katman doğrulandı: Python API üzerinde sahte model istemcisiyle beş kontrollü arıza; gerçek Unity Play istemcisi üzerinde ayrı localhost hata sunucusuyla yedi durum. Model yok/erişilemiyor hata alanları, gerçek HTTP timeout, bozuk JSON, boş gövde ve boş replik denendi. Bütün Unity denemelerinde hak 5/5 korundu ve sonraki geçerli istek tur 1 oldu. Ekran görüntüleri, alan kontrolleri ve kare sayacı JSON kaydına alındı.
+Unity bekleyen mesajın metnini ve turunu saklar. `/sync` önceki turun tamamlanmış kaydını döndürür veya işlemin yapılmadığını bildirir. Tamamlanmış yanıt mevcut turda bir kez uygulanır; değiştirilmiş taslak otomatik gönderilmez. İşlenmemiş isteğin yerine yeni metin aynı turda gönderilebilir. `/sync` model çağırmaz ve tur harcamaz; `Service.lock` devam eden üretim/kayıt işlemiyle eşitlemeyi sıralar. Nihai yanıt da bu yolla geri alınabilir.
 
-Varsayılan istek sınırı 600 saniyedir. Testte yalnız geçici nesnenin süre ayarı 2 saniyeye indirildi; üretim varsayılanı ve sahne değiştirilmedi. Gerçek Ollama süreci/model dosyaları üzerinde kapatma/silme uygulanmadı. Bu sınamalar Windows build veya başka bilgisayarda kurulum testinin yerine geçmez.
-
-Ayrıntılı hata matrisi, oranlar ve ekran/ham kayıt bağlantıları tekrar edilmeden [README'nin hata doğrulama bölümünde](../../README.md#llm-hata-davranışının-doğrulanma-durumu) tutulur. Yeniden çalıştırma için [test planı](../testler/test-plani.md#llm-hata-dayanıklılığı).
+Normal istek timeout değeri 600 saniyedir; eşitleme sorgusu en fazla 10 saniye bekler. Python API sürümü `1.2-session-sync` olur; güncellenen istemci ve servis birlikte kullanılmalıdır. Test kaynakları, güncel kapsam ve kanıtlar tekrarlanmadan [README'nin hata bölümünde](../../README.md#llm-hata-davranışının-doğrulanma-durumu) ve [test planında](../testler/test-plani.md#llm-hata-dayanıklılığı) tutulur. Kontrollü test uçları gerçek model arızası ya da Windows build testi olarak sunulmaz.
 
 ## 6. Mimari İlkeler
 
@@ -227,4 +229,4 @@ Ayrıntılı hata matrisi, oranlar ve ekran/ham kayıt bağlantıları tekrar ed
 
 ### Yerel servis dağıtımı
 
-Çalışma paketi depodaki [LLMService](../../LLMService) klasöründedir. Dosya yolları Python betiklerinin kendi konumundan çözülür; geliştiricinin kullanıcı klasörüne bağlı değildir. Model ağırlıkları Git'e konmaz; kurulum.py kaynak Gemma metin ağırlıklarından yerel profili oluşturur. Başlatma ve kurulum adımları tekrar edilmeden [README'nin servis bölümünde](../../README.md#yerel-llm-servisini-kurma-ve-başlatma) tutulur. Aynı bilgisayarda taşınmış kopyadan yeni profil ve gerçek yanıt doğrulandı; başka bilgisayarda temiz kurulum beklemektedir.
+Çalışma paketi depodaki [LLMService](../../LLMService) klasöründedir. Dosya yolları Python betiklerinin kendi konumundan çözülür; geliştiricinin kullanıcı klasörüne bağlı değildir. Model ağırlıkları Git'e konmaz; kurulum.py kaynak Gemma metin ağırlıklarından yerel profili oluşturur. Başlatma ve kurulum adımları tekrar edilmeden [README'nin servis bölümünde](../../README.md#yerel-llm-servisini-kurma-ve-başlatma) tutulur. Aynı bilgisayarda taşınmış kopyadan yeni profil ve gerçek yanıt otomatik olarak doğrulandı. Başka bilgisayarda kurulum ve çalışma testi de tamamlandı ve sistemin çalıştığı doğrulandı. Bu manuel sonuç, aynı-makine otomatik testinin ham JSON kaydından ayrıdır.

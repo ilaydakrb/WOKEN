@@ -40,6 +40,24 @@ class Service:
             if path == '/close':
                 del self.sessions[key]
                 return {'closed': True}
+            if path == '/sync':
+                # The same lock waits for any in-flight generation/save to finish.
+                # This read never spends a turn or runs the model.
+                game = self.sessions[key]
+                expected = data.get('turn')
+                if type(expected) is not int or not 1 <= expected <= 5:
+                    raise ValueError('turn 1–5 arasında olmalı.')
+                if expected <= len(game.records):
+                    record = game.records[expected - 1]
+                    if record['player'] != data.get('message'):
+                        raise ValueError('Eşitlenecek mesaj kayıtla eşleşmiyor.')
+                    return self.public_record(key, record) | {
+                        'sync_state': 'completed', 'player': record['player']}
+                if expected != len(game.records) + 1:
+                    raise ValueError('Tur sırası hatalı.')
+                return {'session_id': key, 'sync_state': 'not_processed',
+                    'turn': len(game.records), 'remaining': 5-len(game.records),
+                    'decision': 'pending', 'door_open': False}
             if path != '/message':
                 raise ValueError('Bilinmeyen adres.')
             message = data.get('message')
@@ -72,9 +90,13 @@ class Service:
                         'fallback': True, 'reply': FALLBACK_REPLY, 'turn_consumed': False,
                         'turn': len(game.records), 'remaining': 5-len(game.records),
                         'decision': 'pending', 'door_open': False}
-            return {k: record[k] for k in ('turn', 'reply', 'score', 'decision', 'seconds')} | {
-                'session_id': key, 'remaining': 5-record['turn'],
-                'door_open': record['decision'] == 'allow'}
+            return self.public_record(key, record)
+
+    @staticmethod
+    def public_record(key, record):
+        return {k: record[k] for k in ('turn', 'reply', 'score', 'decision', 'seconds')} | {
+            'session_id': key, 'remaining': 5-record['turn'],
+            'door_open': record['decision'] == 'allow'}
 
 
 SERVICE = Service()
@@ -87,11 +109,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # Client may have timed out after commit. /sync can recover the record.
+            pass
 
     def do_GET(self):
         if self.path == '/health':
-            self.respond(200, {'ok': True, 'model': CONFIG['temel_model'], 'api_version': '1.1-error-recovery'})
+            self.respond(200, {'ok': True, 'model': CONFIG['temel_model'], 'api_version': '1.2-session-sync'})
         else:
             self.respond(404, {'error': 'Adres bulunamadı.'})
 

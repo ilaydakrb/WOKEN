@@ -412,7 +412,7 @@ Beş farklı senaryonun gerçek oyuncu mesajları, Gemma yanıtları, kararları
 | Ollama–LLM bağlantısı | Unity istemcisi yerel diyalog servisine bağlandı |
 | Beş farklı LLM senaryosu | Yerel serviste test edildi; ekran kanıtları 16. bölümde |
 | Windows 64-bit build | Unity 6000.6.5f1 ile başarıyla oluşturuldu; `Build/Windows64/WOKEN.exe` |
-| Uçtan uca test ve dokümantasyon | Temel oynanış ve beş LLM senaryosu kontrol edildi; NavMesh için 18 deneme ölçüldü (14 başarılı, %77,78); başka bilgisayar kurulumu ölçülmedi |
+| Uçtan uca test ve dokümantasyon | Temel oynanış ve beş LLM senaryosu kontrol edildi; NavMesh için 18 deneme ölçüldü (14 başarılı, %77,78); başka bilgisayarda kurulum ve çalışma testi kullanıcı tarafından tamamlandı |
 
 ## 11. Kurulum ve Çalıştırma
 
@@ -493,12 +493,12 @@ python LLMService/kontrol.py --mesaj
 
 **Bu aşamadaki doğrulama:** 6 Kasım 2026'da paket boşluk içeren ayrı bir klasöre kopyalandı, yeni geçici metin profili gerçekten oluşturuldu, kopyalanan API 18768 portunda açıldı ve gerçek modelden tek cevap alındı (**60,92 sn** toplam kontrol; model mesajı **60,76 sn**). 20 kural testi ve iki API test metodu (beş kontrollü hata türü dahil) geçti. Geçici test profili kaldırıldı; esas `gemma3-lab-text:latest` profili değişmedi. Sonra depodaki paket varsayılan **8765** portunda başlatılıp health/model erişimi doğrulandı. [Ham doğrulama kaydı](Docs/testler/yerel-servis-tasinabilirlik-sonuclari.json).
 
-**Sınır:** Başka bir bilgisayara erişim olmadığı için ikinci bilgisayarda Python/Ollama'nın sıfırdan kurulması ve offline çalışma testi yapılmadı. Yukarıdaki kontrol aynı makinede mevcut bağımlılıkları/kaynak ağırlıkları kullanan taşınmış klasör ve yeni profil testidir; temiz işletim sistemi kurulumu olarak sunulmaz. Teslim bilgisayarında yukarıdaki kurulumdan sonra Unity'den mesaj/yanıt ve servis kapalı hata davranışı tekrar denenmelidir.
+**Başka bilgisayarda doğrulama — tamamlandı:** Yerel servis/LLM bağlantısı başka bilgisayarda da test edildi ve sistemin çalıştığı doğrulandı. Bu sonuç manuel teste dayanır; yukarıdaki aynı-makine otomatik kontrolünden ayrıdır. Bağlantılı ham JSON yalnız aynı-makine testinin kapsamını kaydeder; içindeki `other_computer_tested: false` bu eski otomatik çalıştırmaya aittir. İkinci bilgisayar testi için donanım/sürüm, süre veya ayrı log bilgisi bu kayıtta bulunmaz. İnternet bağlantısının kapatıldığı koşul ayrıca belirtilmemiştir.
 
 
 ## 12. Testler
 
-Oyuncu hareketi, oda geçişleri, nesne etkileşimleri, bulmacalar ve robot görev akışları Unity Editor'de oynanış sırasında kontrol edildi. İlayda, yerel Unity–servis bağlantısını ve aşağıdaki beş LLM konuşma senaryosunu test edip ekran kayıtlarını sağladı. Test çıktıları 16. bölümde yer aldı.
+Oyuncu hareketi, oda geçişleri, nesne etkileşimleri, bulmacalar ve robot görev akışları Unity Editor'de oynanış sırasında kontrol edildi. Yerel Unity–servis bağlantısı ve aşağıdaki beş LLM konuşma senaryosu test edildi; ekran kayıtları alındı. Test çıktıları 16. bölümde yer aldı.
 
 | Test alanı | Sonuç ve kanıt |
 |---|---|
@@ -506,39 +506,31 @@ Oyuncu hareketi, oda geçişleri, nesne etkileşimleri, bulmacalar ve robot gör
 | Windows build açılışı | Unity build'i başarıyla oluşturuldu ve exe 8 saniyelik kısa açılış kontrolünde çalışır kaldı; tam oyun akışı testi yapılmadı. |
 | Robot takibi ve görevleri | Takip ve görev akışı oynanışta kontrol edildi. Ek olarak 3 başlangıç × 2 hedef × 3 tekrar = 18 gerçek Play denemesi yapıldı: 14 başarılı, %77,78; başarılı ulaşmaların ortalaması 2,01 sn. Ham sonuçlar aşağıdadır. |
 | Engel algısı | `RobotMovementController` içinde üç Raycast ve yakın engelde rota yenileme kodu incelendi. Ayrı sayısal sensör doğruluk testi kaydı yok. |
-| LLM bağlantısı ve senaryolar | Yerel bilgisayarda servis bağlantısı ve beş diyalog yaklaşımı İlayda tarafından denendi; kayıtlar 16. bölümde. |
-| Başka bilgisayarda servis kurulumu | İkinci bilgisayarda test edilmedi. Kaynak/başlatıcı artık LLMService içinde; aynı bilgisayarda ayrı klasör + yeni profil ile gerçek yanıt kontrolü geçti. |
+| LLM bağlantısı ve senaryolar | Yerel bilgisayarda servis bağlantısı ve beş diyalog yaklaşımı denendi; kayıtlar 16. bölümde. |
+| Başka bilgisayarda servis kurulumu | Tamamlandı; başka bilgisayarda da manuel test yapıldı ve sistemin çalıştığı doğrulandı. Aynı bilgisayardaki otomatik taşınmış-kopya kontrolü ayrı ham kayıtla belgelidir. |
 
 ### LLM hata davranışının doğrulanma durumu
 
-**6 Kasım 2026 — iki ayrı test katmanı:**
+**6 Kasım 2026 — bağlantı uyarısı ve kayıp yanıt eşitlemesi:** Teknik hatalar robotun söylediği bir replik gibi gösterilmez. Sohbetin üzerinde ayrı, ortalanmış **“Robot bağlantı uyarısı”** penceresi açılır. Robot servisine ulaşılamama, Ollama erişim hatası, model bulunamaması, zaman aşımı ve geçersiz yanıt için ayrı açıklamalar gösterilir. **Tamam** veya **Esc** ile uyarı kapanır; yazılan mesaj korunur. Uyarı açıkken yeni mesaj gönderilmez.
 
-1. **Python API / kontrollü HTTP:** Gerçek `api_sunucu.py` ve `Game` kullanıldı; model istemcisine hata enjekte edildi. Ollama erişilemiyor, model yok, timeout, bozuk JSON ve boş replik olmak üzere **5/5 hata türü geçti**. Her hatada HTTP 503 döndü, API health isteğine 200 vermeye devam etti, geçmiş/tur değişmedi ve düzeltilmiş sonraki istek tur 1 oldu. Gerçek Ollama süreci kapatılmadı/model silinmedi.
-2. **Gerçek Unity Play istemcisi / kontrollü yerel uçlar:** `CharactersOnly` sahnesinde aynı `LabRobotClient`, coroutine, UnityWebRequest ve OnGUI akışı çalıştırıldı. Ayrı test sunucusu `127.0.0.1:18765`, kapalı bağlantı hedefi `127.0.0.1:18766` idi. **7/7 durum geçti.** Model/erişim hata durumları test sunucusundan enjekte edildi; bozuk ve boş başarılı HTTP yanıtları doğrudan Unity'ye verildi. Bu, gerçek Unity istemci testidir; gerçek Gemma arızası veya manuel bütün-oyun testi olarak sunulmaz.
+**Hak ve tur güvenliği:** Sunucu işlemin başarısız olduğunu doğruladığında “Konuşma hakkın azalmadı. Kalan hak: …/5” gösterilir. Yanıtın ağda kaybolması halinde sunucu mesajı zaten işlemiş olabilir; bu durumda yanlış biçimde hak korunmuş gibi bildirmek yerine “Yeni mesaj gönderilmedi. Önceki mesajın durumu henüz doğrulanamadı.” gösterilir. Sorun çözülmeden başka bir mesaj gönderilmez.
 
-| Hata durumu | Python API kontrollü test | Unity Play kontrollü test | Hata sonrası hak / tekrar |
-|---|---|---|---|
-| Unity'nin servise bağlanamaması | Bu katmanda uygulanmadı | Kapalı 18766 portuna gerçek bağlantı; geçti | 5/5 korundu; düzelince tur 1 |
-| Ollama'ya erişilememe | Model istemcisinde bağlantı hatası; HTTP 503; geçti | Enjekte edilen `ollama_unavailable` HTTP 503; geçti | 5/5 korundu; düzelince tur 1 |
-| Model bulunamaması | Model istemcisinde 404 → API'de 503; geçti | Enjekte edilen `model_missing` HTTP 503; geçti | 5/5 korundu; düzelince tur 1 |
-| Zaman aşımı | Timeout istisnası enjekte edildi; geçti | Sunucu 5 sn geciktirildi; Unity 2 sn test sınırında gerçekten timeout oldu; geçti | 5/5 korundu; düzelince tur 1 |
-| Bozuk JSON | JSON çözümleme hatası; geçti | HTTP 200 ile `{broken` gövdesi; geçti | 5/5 korundu; düzelince tur 1 |
-| Boş HTTP gövdesi | Ayrı sınanmadı | HTTP 200, boş gövde; geçti | 5/5 korundu; düzelince tur 1 |
-| Boş replik | Modelden boş replik; geçti | HTTP 200, geçerli JSON fakat boş `reply`; geçti | 5/5 korundu; düzelince tur 1 |
+**Kayıp yanıtı geri alma (`POST /sync`):** Unity son gönderdiği mesajı ve turu saklar. Belirsiz bir hatadan sonra veya yeniden gönderim öncesinde sunucuyla eşitleme yapar. `/sync`, model çalıştırmadan, yeni tur oluşturmadan kayıt durumunu okur; devam eden model/kayıt işlemi varsa aynı kilit üzerinden sonucu bekler.
 
-**Oyuncuya gösterilen sonuç:** “Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?”; üstte **“Konuşma hakkın azalmadı. Kalan hak: 5/5”**. Her Unity testinde `busy` kaldırıldı, kapı/ret olayı tetiklenmedi ve oyun Play'de kaldı. Sonraki başarılı istekte sayaç 1'e, kalan hak 4'e geçti. Bu sabit hata karşılığı model üretimi veya harcanmış konuşma turu sayılmaz.
-
-**Timeout ölçümünün kapsamı:** Normal istemci varsayılanı **600 saniye** olarak korundu. Yalnız geçici test nesnesindeki `requestTimeoutSeconds` değeri 2 yapıldı; ölçülen ağ zaman aşımı yaklaşık **2,04 sn** idi. Bu bekleme sırasında **146 kare** ilerledi. Diğer durumlarda da kare sayacı ilerledi; bu, ana döngünün testte çalıştığına kanıttır, sabit FPS performans testi değildir. Gerçek 600 saniyelik bekleme veya Windows build testi yapılmış gibi raporlanmaz.
-
-**Ham kanıtlar:** [Python HTTP sonuçları](Docs/testler/llm-http-hata-test-sonuclari.json), [Unity sonuçları](Docs/testler/llm-unity-hata-test-sonuclari.json), [Unity test logu](Docs/testler/llm-hata-unity-log.txt). Her Unity JSON kaydı kendi ekran görüntüsünün adını da içerir. Tekrar çalıştırma adımları [mevcut test planındadır](Docs/testler/test-plani.md#llm-hata-dayanıklılığı).
-
-| Unity ekran kanıtı | Görüntü |
+| Sunucudaki durum | Unity'nin davranışı |
 |---|---|
-| Servise bağlanılamıyor; hak korunuyor | [Aç](Docs/testler/llm-hata-unity-service_down.png) |
-| Gerçek HTTP timeout; hak korunuyor | [Aç](Docs/testler/llm-hata-unity-timeout.png) |
-| Boş replik reddediliyor; hak korunuyor | [Aç](Docs/testler/llm-hata-unity-empty_reply.png) |
+| Önceki mesaj işlenmiş (`sync_state=completed`) | Kayıtlı gerçek yanıt ve izin/ret kararı geri alınır; aynı tur ikinci kez harcanmaz. Oyuncunun değiştirdiği taslak korunur ve otomatik gönderilmez. |
+| Önceki mesaj işlenmemiş (`sync_state=not_processed`) | Hak değişmez; oyuncu değiştirilmiş mesajını aynı kullanılmamış turda gönderebilir. |
+| Durum hâlâ doğrulanamıyor | Uyarı gösterilir; yeni üretim başlatılmaz. Sonraki denemede önce eşitleme yapılır. |
+| Beşinci turun yanıtı kaybolmuş | Kayıtlı nihai karar geri alınır; altıncı tur oluşturulmaz. Kapı/bitiş yine normal sohbet kapanışıyla uygulanır. |
 
-**Kalan sınır:** Üretim Ollama sürecini gerçekten kapatma, model dosyalarını gerçekten kaldırma ve hazır Windows build'de aynı arızaları deneme bu testlerin kapsamına dahil değildir. Ayrı yerel hata uçları kullanılarak çalışan model ve gerçek servis etkilenmemiştir. Başka bilgisayarda temiz kurulum da ayrı bir teslim testidir.
+İstek: `POST /sync`, JSON alanları `session_id`, `message` (önceki mesajın aynısı), `turn` (önceki gönderim turu). Tamamlanmış kayıtta normal `/message` yanıtına `sync_state` ve `player` eklenir. İşlenmemiş kayıtta mevcut `turn`, `remaining`, `decision=pending`, `door_open=false` döner. Bu uç için Unity'nin bekleme sınırı en fazla 10 saniyedir; normal mesaj timeout değeri **600 saniye** olarak korunur. Servis ve istemci birlikte güncellenmelidir; API sürümü `1.2-session-sync` olur.
+
+**Python doğrulaması:** 20 kural testi ve 7 API test metodu birlikte **27 test** olarak geçti. Beş mevcut arıza türüne ek olarak işlenmiş yanıtı geri alma, işlenmemiş mesaja yeni metinle devam, son karar/oturum ayrımı, gerçek HTTP bağlantısını yanıt gönderilmeden kapatma ve devam eden işlemle eşitleme yarışı sınandı. [Yeni API regresyon kaydı](Docs/testler/llm-sync-api-test-sonuclari.json), [beş kontrollü API hatası](Docs/testler/llm-http-hata-test-sonuclari.json).
+
+**Unity doğrulaması: 10/10 durum geçti.** Güncel test aracı, gerçek `LabRobotClient`/UnityWebRequest/coroutine/OnGUI üzerinden 10 durumu sınar: servis kapalı, Ollama erişilemiyor, model yok, timeout, bozuk JSON, boş gövde, boş replik, işlenmiş yanıtın kaybı, işlenmeden bağlantının kesilmesi ve nihai yanıtın kaybı. Çalıştırma durumu ve ölçümler [Unity ham kaydında](Docs/testler/llm-unity-hata-test-sonuclari.json), tekrar adımları [test planındadır](Docs/testler/test-plani.md#llm-hata-dayanıklılığı).
+
+Kontrollü testler ayrı yerel uçlar kullanır; üretim Ollama sürecinin fiziksel kapatılması, model dosyalarının silinmesi veya Windows build'de bütün arızaların denenmesi olarak sunulmaz. Aynı şekilde, bağlantı hatası için gösterilen UI bildirimi sabit bir **sistem uyarısıdır**, modelin ürettiği NPC repliği değildir.
 
 ### NavMesh ölçüm sonuçları — 6 Kasım 2026
 
@@ -572,8 +564,8 @@ Başlangıçlar: **S1=(-11,9; -3,2)**, **S2=(-11,9; 3,2)**, **S3=(-7,2; -3,2)**.
 - **Robotun takip davranışının kesilmesi:** Rota ve görev akışları sonrasında takip durumuna dönüş düzenlendi.
 - **Dar geçit ve kapı çarpışmaları:** Oyuncu ve robot geçişleri collider ve görev hareketleriyle iyileştirildi.
 - **Görev sırasının karışması:** Malzeme alma/kullanma akışı sabit sıraya alındı.
-- **LLM hata güvenliği:** `LabRobotClient` ağ hatası, sunucu hata alanı, boş/geçersiz JSON ve eksik/tutarsız karar alanlarını reddedip kullanıcıya durum gösterdi. Python API'de 5 hata türü ve gerçek Unity Play istemcisinde 7 kontrollü durum sınandı; kanıtlar 12. bölümde toplandı.
-- **Harici servis dağıtımı:** Servis LLMService klasörüyle depoya eklendi. Başlatma/model kurulum betikleri ve aynı bilgisayarda taşınmış kopya kontrolü tamamlandı; başka bilgisayarda temiz kurulum doğrulanmadı.
+- **LLM hata güvenliği:** `LabRobotClient` ağ hatası, sunucu hata alanı, boş/geçersiz JSON ve eksik/tutarsız karar alanlarını reddedip kullanıcıya durum gösterdi. Python API hata/regresyon testleri ve Unity için 10 durumluk kontrol aracı hazırlandı; güncel sonuçlar 12. bölümde toplandı.
+- **Harici servis dağıtımı:** Servis LLMService klasörüyle depoya eklendi. Başlatma/model kurulum betikleri ve aynı bilgisayarda taşınmış kopya kontrolü tamamlandı; başka bilgisayarda kurulum ve çalışma da test edilip çalışır olarak doğrulandı.
 
 ## 14. Ekran Görüntüleri
 
@@ -619,7 +611,7 @@ Başlangıçlar: **S1=(-11,9; -3,2)**, **S2=(-11,9; 3,2)**, **S3=(-7,2; -3,2)**.
 
 ## 16. LLM Senaryo Test Çıktıları
 
-Gemma yerel servisi İlayda tarafından geliştirme bilgisayarında test edildi. Her senaryoda beş mesaj hakkı kullanıldı. Aşağıdaki mesaj/yanıt çiftleri ekran kayıtlarından alındı; karar sütunu test ekranında görülen son oyun sonucunu özetledi.
+Gemma yerel servisi geliştirme bilgisayarında test edildi. Her senaryoda beş mesaj hakkı kullanıldı. Aşağıdaki mesaj/yanıt çiftleri ekran kayıtlarından alındı; karar sütunu test ekranında görülen son oyun sonucunu özetledi.
 
 ### Gemma ile konuşma ekranı
 
@@ -702,6 +694,6 @@ PDF teslim maddesine uygun olarak kaynak proje ve Windows 64-bit build tek ZIP a
 
 WOKEN kapsamında keşif ve bulmaca odaklı 2D laboratuvar oyunu geliştirildi. Oyuncu hareketi, nesne etkileşimleri, oda geçişleri ve batarya koşuluna bağlı elektrikli kapı bir araya getirildi. Yardımcı robot NavMesh ile oyuncuyu takip etti, görev hedeflerine gitti ve hareket yönündeki Raycast sensörleriyle engelleri algılayıp yakın engellerde rotasını yeniledi. Oyuncunun Gemma ile yerel LLM üzerinden yaptığı beş konuşma yaklaşımı ekran çıktılarıyla belgelendi; izin kararı Unity kapı akışına bağlandı.
 
-Çalışmanın sınırları da kayda geçirildi. LLM servisinin kaynakları ve başlatma/kurulum araçları LLMService içinde teslim edilebilir hale getirildi; taşınmış kopya aynı makinede sınandı, başka bilgisayarda temiz kurulum sınanmadı. Tam system prompt metinleri ve `gemma3-lab-text:latest` / `gemma3:4b` model kimliği gerçek servis kaynaklarından doğrulanıp 9. bölüme eklendi; ağırlık eğitimi yapılmadı. Donanım, model boyutu ve bellek gerekçesi yerel sorgularla 9. bölüme işlendi; üç eski donanım fotoğrafı kaldırıldı. Yeni tepe model belleği veya karşılaştırmalı model performansı ölçülmedi. LLM hata yolları Python API'de 5 tür ve Unity Play'de 7 kontrollü durumla doğrulandı; üretim Ollama/model dosyalarını fiziksel kapatma/silme ve Windows build arıza testleri yapılmadı. Robotun üç farklı başlangıç ve iki hedefteki 18 ölçümü %77,78 başarı ve başarılı denemelerde 2,01 sn ortalama verdi; dört NoRoute sonucu geliştirmeye açık kaldı. Konu dışı diyalog örneklerinde bağlam tutarlılığı geliştirmeye açık kaldı.
+Çalışmanın sınırları da kayda geçirildi. LLM servisinin kaynakları ve başlatma/kurulum araçları LLMService içinde teslim edilebilir hale getirildi; taşınmış kopya aynı makinede otomatik olarak sınandı; ayrıca başka bilgisayarda kurulum ve çalışma testi tamamlandı ve çalıştığı doğrulandı. Tam system prompt metinleri ve `gemma3-lab-text:latest` / `gemma3:4b` model kimliği gerçek servis kaynaklarından doğrulanıp 9. bölüme eklendi; ağırlık eğitimi yapılmadı. Donanım, model boyutu ve bellek gerekçesi yerel sorgularla 9. bölüme işlendi; üç eski donanım fotoğrafı kaldırıldı. Yeni tepe model belleği veya karşılaştırmalı model performansı ölçülmedi. LLM hata yolları ve kayıp yanıt eşitlemesi için Python API regresyonları ve Unity hata aracı eklendi; üretim Ollama/model dosyalarını fiziksel kapatma/silme ve Windows build arıza testleri yapılmadı. Robotun üç farklı başlangıç ve iki hedefteki 18 ölçümü %77,78 başarı ve başarılı denemelerde 2,01 sn ortalama verdi; dört NoRoute sonucu geliştirmeye açık kaldı. Konu dışı diyalog örneklerinde bağlam tutarlılığı geliştirmeye açık kaldı.
 
-İleride teslim paketi başka bilgisayarda sıfırdan ve internet kapalı çalışma koşulunda doğrulanabilir; model belleğinin tepe tüketimi ve aynı koşullardaki alternatif model karşılaştırmaları ölçülebilir; üretim servisi ve Windows build hata testleri genişletilebilir; NavMesh ölçümünde NoRoute veren rotalar incelenip çoklu başlangıç testleri tekrarlanabilir; konu dışı diyalogların tutarlılığı iyileştirilebilir.
+Başka bilgisayarda tamamlanan manuel testin makine/sürüm ve ekran kayıtları rapora eklenebilir; internet kapalı çalışma koşulu ayrıca belgelenebilir; model belleğinin tepe tüketimi ve aynı koşullardaki alternatif model karşılaştırmaları ölçülebilir; üretim servisi ve Windows build hata testleri genişletilebilir; NavMesh ölçümünde NoRoute veren rotalar incelenip çoklu başlangıç testleri tekrarlanabilir; konu dışı diyalogların tutarlılığı iyileştirilebilir.

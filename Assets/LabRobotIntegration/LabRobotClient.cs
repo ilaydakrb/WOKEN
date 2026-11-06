@@ -28,6 +28,9 @@ public class LabRobotClient : MonoBehaviour
     float nextLookup;
     string sessionId = "", draft = "", transcript = "", status = "";
     int turn;
+    bool serviceErrorVisible, needsSync, lastRequestUncertain;
+    string serviceErrorMessage = "", lastErrorCode = "", pendingMessage = "";
+    int pendingTurn;
     bool busy, finished, exitDenied, gameOver;
     Vector2 scroll;
     float maxScroll;
@@ -70,8 +73,11 @@ public class LabRobotClient : MonoBehaviour
         if (near && !showTestPanel && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
         { suppressedUntilLeave = false; SetPanel(true); }
         if (showTestPanel && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            CloseConversation();
-        if (showTestPanel && Keyboard.current != null)
+        {
+            if (serviceErrorVisible) DismissServiceError();
+            else CloseConversation();
+        }
+        if (showTestPanel && !serviceErrorVisible && Keyboard.current != null)
         {
             float direction = (Keyboard.current.downArrowKey.isPressed ? 1f : 0f)
                             - (Keyboard.current.upArrowKey.isPressed ? 1f : 0f);
@@ -121,25 +127,25 @@ public class LabRobotClient : MonoBehaviour
     [Serializable] class Payload { public string session_id; public string message; public int turn; }
     [Serializable] class Result
     {
-        public string session_id, reply, decision, error;
+        public string session_id, reply, decision, error, error_code, sync_state, player;
         public int turn, remaining, score;
-        public bool door_open;
+        public bool door_open, fallback, turn_consumed;
     }
     public void SendMessageToRobot(string message)
     {
-        if (busy || finished) return;
+        if (busy || finished || serviceErrorVisible) return;
         if (string.IsNullOrWhiteSpace(message) || message.Length > 400)
         { status = "1–400 karakter yazın."; return; }
         StartCoroutine(Send(message));
     }
-    IEnumerator Request(string path, Payload data, Action<Result> done)
+    IEnumerator Request(string path, Payload data, Action<Result> done, int timeoutOverride = 0)
     {
         using (var request = new UnityWebRequest(apiUrl.TrimEnd('/') + path, "POST"))
         {
             request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(JsonUtility.ToJson(data)));
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = Mathf.Max(1, requestTimeoutSeconds);
+            request.timeout = Mathf.Max(1, timeoutOverride > 0 ? timeoutOverride : requestTimeoutSeconds);
             yield return request.SendWebRequest();
             Result result = null;
             string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
@@ -164,49 +170,121 @@ public class LabRobotClient : MonoBehaviour
                 else
                     status = "Robot servisi boş veya geçersiz JSON yanıtı döndürdü.";
 
+                bool timedOut = request.error != null && (request.error.ToLowerInvariant().Contains("timed out")
+                    || request.error.ToLowerInvariant().Contains("timeout"));
+                lastErrorCode = serverReportedError
+                    ? (string.IsNullOrEmpty(result.error_code) ? result.error : result.error_code)
+                    : (requestFailed ? (timedOut ? "timeout" : "service_unavailable") : "invalid_response");
+                // A valid server rollback envelope proves that this attempt did not commit.
+                lastRequestUncertain = path == "/message" && !(serverReportedError
+                    && result.fallback && !result.turn_consumed && result.session_id == sessionId
+                    && result.turn == turn && result.remaining == 5 - turn);
                 Debug.LogWarning("Robot API: " + status, this);
                 done(null);
             }
-            else done(result);
+            else
+            {
+                lastErrorCode = "";
+                lastRequestUncertain = false;
+                done(result);
+            }
         }
     }
     IEnumerator Send(string message)
     {
         busy = true;
+        // Do not submit revised text until the previous turn's outcome is known.
+        if (needsSync)
+        {
+            bool synchronized = false, restored = false;
+            yield return SynchronizePending((ok, recovered) => { synchronized = ok; restored = recovered; });
+            if (!synchronized) { ShowRetryResponse(message); busy = false; yield break; }
+            if (restored) { busy = false; yield break; }
+        }
         if (string.IsNullOrEmpty(sessionId))
         {
-            yield return Request("/session", new Payload(), r =>
-            {
-                if (r != null && !string.IsNullOrWhiteSpace(r.session_id))
-                    sessionId = r.session_id;
-                else if (r != null)
-                    status = "Robot servisi geçerli bir oturum kimliği döndürmedi.";
+            yield return Request("/session", new Payload(), r => {
+                if (r != null && !string.IsNullOrWhiteSpace(r.session_id)) sessionId = r.session_id;
+                else if (r != null) lastErrorCode = "invalid_response";
             });
             if (string.IsNullOrEmpty(sessionId))
-            {
-                if (string.IsNullOrWhiteSpace(status))
-                    status = "Robot servisine bağlanılamadı. Lütfen yeniden deneyin.";
-                ShowRetryResponse(message);
-                busy = false;
-                yield break;
-            }
+            { ShowRetryResponse(message); busy = false; yield break; }
         }
         status = "Robot düşünüyor…";
-        yield return Request("/message", new Payload { session_id = sessionId, message = message, turn = turn + 1 }, result => {
-            if (!ValidMessageResult(result)) { ShowRetryResponse(message); return; }
-            turn = result.turn; finished = turn >= 5 || result.decision != "pending";
-            exitDenied = result.decision == "deny";
-            exitAllowed = result.decision == "allow" && result.door_open;
-            transcript += "\nSen: " + message + "\nRobot: " + result.reply + "\n";
-            draft = ""; status = finished ? "Görüşme tamamlandı — 5/5" : "Konuşma: " + turn + "/5";
-            scrollToBottom = true;
-            focusMessage = !finished;
-            onReply.Invoke(result.reply);
-            if (result.decision == "deny") onDoorDenied.Invoke();
-            // Son yanıt beklenirken pencere kapatılmışsa sonuç geldiğinde bitişi uygula.
-            if (finished && !showTestPanel) CloseConversation();
-        });
+        pendingMessage = message;
+        pendingTurn = turn + 1;
+        Result answer = null;
+        yield return Request("/message", new Payload { session_id = sessionId, message = message, turn = pendingTurn }, r => answer = r);
+        if (ValidMessageResult(answer))
+        {
+            ApplyMessageResult(answer, message, false);
+            pendingMessage = "";
+        }
+        else
+        {
+            // A malformed successful response is also uncertain: the server may have committed.
+            needsSync = answer != null || lastRequestUncertain;
+            if (answer != null) lastErrorCode = "invalid_response";
+            if (needsSync)
+            {
+                bool synchronized = false, restored = false;
+                string originalError = lastErrorCode;
+                yield return SynchronizePending((ok, recovered) => { synchronized = ok; restored = recovered; });
+                if (restored) { busy = false; yield break; }
+                if (string.IsNullOrEmpty(lastErrorCode)) lastErrorCode = originalError;
+            }
+            ShowRetryResponse(message);
+        }
         busy = false;
+    }
+    IEnumerator SynchronizePending(Action<bool, bool> done)
+    {
+        status = "Önceki mesajın durumu kontrol ediliyor…";
+        Result result = null;
+        yield return Request("/sync", new Payload { session_id = sessionId,
+            message = pendingMessage, turn = pendingTurn }, r => result = r,
+            Mathf.Min(requestTimeoutSeconds, 10));
+        if (result != null && result.sync_state == "completed"
+            && result.player == pendingMessage && ValidMessageResult(result))
+        {
+            string original = pendingMessage;
+            needsSync = false;
+            pendingMessage = "";
+            ApplyMessageResult(result, original, true);
+            done(true, true);
+        }
+        else if (result != null && result.sync_state == "not_processed"
+            && result.session_id == sessionId && result.turn == turn
+            && result.remaining == 5 - turn && result.decision == "pending" && !result.door_open)
+        {
+            needsSync = false;
+            pendingMessage = "";
+            done(true, false);
+        }
+        else
+        {
+            needsSync = true;
+            if (string.IsNullOrEmpty(lastErrorCode)) lastErrorCode = "invalid_response";
+            done(false, false);
+        }
+    }
+    void ApplyMessageResult(Result result, string message, bool recovered)
+    {
+        turn = result.turn; finished = turn >= 5 || result.decision != "pending";
+        exitDenied = result.decision == "deny";
+        exitAllowed = result.decision == "allow" && result.door_open;
+        transcript += "\nSen: " + message + "\nRobot: " + result.reply + "\n";
+        // Keep revised text; restoring an old reply must not submit it as another turn.
+        if (!recovered || draft == message) draft = "";
+        status = finished ? "Görüşme tamamlandı — 5/5" : recovered
+            ? "Önceki yanıt geri alındı. Konuşma: " + turn + "/5. Yeni mesajını gönderebilirsin."
+            : "Konuşma: " + turn + "/5";
+        serviceErrorVisible = false;
+        scrollToBottom = true;
+        focusMessage = !finished;
+        onReply.Invoke(result.reply);
+        if (result.decision == "deny") onDoorDenied.Invoke();
+        if (finished && !showTestPanel) CloseConversation();
     }
     bool ValidMessageResult(Result result)
     {
@@ -221,13 +299,53 @@ public class LabRobotClient : MonoBehaviour
     }
     void ShowRetryResponse(string message)
     {
-        // This application fallback does not count as a model reply or conversation turn.
-        status = "Konuşma hakkın azalmadı. Kalan hak: " + (5 - turn) + "/5";
-        string reply = "Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?";
-        transcript += "\nSen: " + message + "\nRobot: " + reply + "\n";
-        scrollToBottom = true;
+        // Transport failures are UI notifications, never simulated robot speech.
+        status = needsSync
+            ? "Yeni mesaj gönderilmedi. Önceki mesajın durumu henüz doğrulanamadı."
+            : "Konuşma hakkın azalmadı. Kalan hak: " + (5 - turn) + "/5";
+        switch (lastErrorCode)
+        {
+            case "ollama_unavailable": serviceErrorMessage = "Yerel model sunucusuna (Ollama) ulaşılamadı. Ollama'nın açık olduğunu kontrol edip tekrar dene."; break;
+            case "model_missing": serviceErrorMessage = "Robotun kullanacağı yerel model bulunamadı. Model kurulumunu kontrol edip tekrar dene."; break;
+            case "timeout": serviceErrorMessage = "Robot servisinden zamanında yanıt alınamadı. Biraz bekleyip tekrar dene."; break;
+            case "invalid_response": serviceErrorMessage = "Robot servisinden geçerli bir yanıt alınamadı. Tekrar deneyebilirsin."; break;
+            case "service_unavailable": serviceErrorMessage = "Robot servisine ulaşılamadı. Yerel servisin açık olduğunu kontrol edip tekrar dene."; break;
+            default: serviceErrorMessage = "Robot servisi isteği tamamlayamadı. Yerel servis bağlantısını kontrol edip tekrar dene."; break;
+        }
+        serviceErrorVisible = true;
+        focusMessage = false;
+    }
+    void DismissServiceError()
+    {
+        serviceErrorVisible = false;
         focusMessage = true;
-        onReply.Invoke(reply);
+    }
+    void DrawServiceError()
+    {
+        Color previous = GUI.color;
+        GUI.color = new Color(0, 0, 0, .7f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        float width = Mathf.Min(540, Mathf.Max(1, Screen.width - 32));
+        float inner = Mathf.Max(1, width - 36);
+        float titleHeight = titleStyle.CalcHeight(new GUIContent("Robot bağlantı uyarısı"), inner);
+        float messageHeight = bodyStyle.CalcHeight(new GUIContent(serviceErrorMessage), inner);
+        float statusHeight = hintStyle.CalcHeight(new GUIContent(status), inner);
+        float height = titleHeight + messageHeight + statusHeight + 112;
+        Rect box = new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height);
+        GUI.color = Color.black;
+        GUI.DrawTexture(new Rect(box.x-1, box.y-1, box.width+2, box.height+2), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        GUI.DrawTexture(box, Texture2D.whiteTexture);
+        GUILayout.BeginArea(new Rect(box.x+18, box.y+18, inner, height-36));
+        GUILayout.Label("Robot bağlantı uyarısı", titleStyle);
+        GUILayout.Space(12);
+        GUILayout.Label(serviceErrorMessage, bodyStyle);
+        GUILayout.Space(12);
+        GUILayout.Label(status, hintStyle);
+        GUILayout.Space(16);
+        if (GUILayout.Button("Tamam", buttonStyle, GUILayout.Height(32))) DismissServiceError();
+        GUILayout.EndArea();
+        GUI.color = previous;
     }
     void OnGUI()
     {
@@ -235,6 +353,7 @@ public class LabRobotClient : MonoBehaviour
         if (gameOver) { DrawGameOver(); return; }
         if (!showTestPanel) return;
         EnsureStyles();
+        if (serviceErrorVisible) { DrawServiceError(); return; }
         var inputEvent = Event.current;
         // Oklar mesaj alanı odaktayken de geçmişi kaydırır; metin imlecine gitmez.
         if (inputEvent.type == EventType.KeyDown

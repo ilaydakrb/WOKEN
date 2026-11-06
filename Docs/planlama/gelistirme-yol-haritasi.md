@@ -59,7 +59,7 @@
 ## 8. Dokümantasyon ve Teslim
 
 - Sistem mimarisinin LLM bağlantısı tamamlandıktan sonra güncellenmesi planlandı.
-- Python servis paketi LLMService klasörüne eklendi; model profili kurulum ve API başlatma yönergeleri README'de tamamlandı. Aynı bilgisayarda taşınmış kopya testi geçti; başka bilgisayarda temiz kurulum bekliyor.
+- Python servis paketi LLMService klasörüne eklendi; model profili kurulum ve API başlatma yönergeleri README'de tamamlandı. Aynı bilgisayarda taşınmış kopya testi geçti; başka bilgisayarda kurulum ve çalışma testi de tamamlandı ve çalıştığı doğrulandı.
 - Test sonuçlarının ve bilinen sınırlamaların dokümante edilmesi planlandı.
 - Projenin son sürümünün GitHub üzerinde düzenlenmesi kararlaştırıldı.
 - Sunum ve teslim materyallerinin hazırlanması planlandı.

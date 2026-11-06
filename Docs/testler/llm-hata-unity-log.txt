@@ -1,4 +1,4 @@
-LLMFAULT START 7 cases
+LLMFAULT START 10 cases
 LLMFAULT service_down passed=True remaining=5 recovery=1
 LLMFAULT ollama_unavailable passed=True remaining=5 recovery=1
 LLMFAULT model_missing passed=True remaining=5 recovery=1
@@ -6,4 +6,7 @@ LLMFAULT timeout passed=True remaining=5 recovery=1
 LLMFAULT broken_json passed=True remaining=5 recovery=1
 LLMFAULT empty_body passed=True remaining=5 recovery=1
 LLMFAULT empty_reply passed=True remaining=5 recovery=1
-LLMFAULT DONE 7 cases
+LLMFAULT lost_response passed=True remaining=5 recovery=2
+LLMFAULT lost_uncommitted passed=True remaining=5 recovery=1
+LLMFAULT lost_final passed=True remaining=1 recovery=5
+LLMFAULT DONE 10 cases

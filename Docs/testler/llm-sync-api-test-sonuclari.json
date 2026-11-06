@@ -1,0 +1,24 @@
+{
+  "recordedUtc": "2026-11-06T09:33:59.405438+00:00",
+  "method": "Production Python Game/API; fake model only; actual localhost HTTP disconnect after commit and in-flight synchronization tests. No real-model quality claim.",
+  "tests_run": 27,
+  "failures": 0,
+  "errors": 0,
+  "passed": true,
+  "sync_cases": [
+    "committed_response_recovered",
+    "unprocessed_revised_message",
+    "final_and_session_isolation",
+    "real_http_disconnect_after_commit",
+    "inflight_waits_for_commit"
+  ],
+  "unity_cases_passed": 10,
+  "unity_record": "llm-unity-hata-test-sonuclari.json",
+  "source_hashes": {
+    "LLMService/api_sunucu.py": "a0f2e5e481d1a306cfacff9aa2c8ad6a93daca3f5aae5cd1c61c01c5b229b210",
+    "LLMService/api_testleri.py": "865f86ed8c57c48d178d3bc37d53c8ca5d8bc4823c4a83d0ac3437c2158f4fde",
+    "Assets/LabRobotIntegration/LabRobotClient.cs": "476dcebb92f02979f25513ed416364ae1bb2828b4a1c6fe5799603fadb378149",
+    "Assets/Editor/LLMErrorIntegrationMeasurement.cs": "5427309fdee9e87614204f9902867a1f880e69918ee24569d0bdb27fdce57de5",
+    "Assets/Editor/llm_fault_server.py": "62225ed94a64e158d32c2a2e1d54fb94b59143c487eada697a9c26ba678e3e0a"
+  }
+}

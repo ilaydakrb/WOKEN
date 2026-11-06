@@ -74,7 +74,7 @@ namespace Woken.Gameplay
 
             sceneCamera.tag = "MainCamera";
             sceneCamera.orthographic = true;
-            sceneCamera.orthographicSize = 5f;
+            sceneCamera.orthographicSize = 6f;
             sceneCamera.backgroundColor =
                 new Color32(29, 37, 42, 255);
             sceneCamera.clearFlags = CameraClearFlags.SolidColor;
