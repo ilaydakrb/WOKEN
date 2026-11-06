@@ -1,0 +1,9 @@
+LLMFAULT START 7 cases
+LLMFAULT service_down passed=True remaining=5 recovery=1
+LLMFAULT ollama_unavailable passed=True remaining=5 recovery=1
+LLMFAULT model_missing passed=True remaining=5 recovery=1
+LLMFAULT timeout passed=True remaining=5 recovery=1
+LLMFAULT broken_json passed=True remaining=5 recovery=1
+LLMFAULT empty_body passed=True remaining=5 recovery=1
+LLMFAULT empty_reply passed=True remaining=5 recovery=1
+LLMFAULT DONE 7 cases

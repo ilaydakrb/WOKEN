@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+kayitlar/
+test-output/
+Modelfile.generated
+hata-test-sonuclari.json
+test-sonuclari.json
+yeni-sonuclar.json

@@ -11,6 +11,7 @@ using Woken.Characters;
 public class LabRobotClient : MonoBehaviour
 {
     public string apiUrl = "http://127.0.0.1:8765";
+    [SerializeField, Min(1)] private int requestTimeoutSeconds = 600;
     public UnityEvent<string> onReply = new UnityEvent<string>();
     public UnityEvent onDoorOpen = new UnityEvent();
     public UnityEvent onDoorDenied = new UnityEvent();
@@ -138,7 +139,7 @@ public class LabRobotClient : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(JsonUtility.ToJson(data)));
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = 600;
+            request.timeout = Mathf.Max(1, requestTimeoutSeconds);
             yield return request.SendWebRequest();
             Result result = null;
             string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
@@ -222,27 +223,6 @@ public class LabRobotClient : MonoBehaviour
     {
         // This application fallback does not count as a model reply or conversation turn.
         status = "Konuşma hakkın azalmadı. Kalan hak: " + (5 - turn) + "/5";
-        string reply = "Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?";
-        transcript += "\nSen: " + message + "\nRobot: " + reply + "\n";
-        scrollToBottom = true;
-        focusMessage = true;
-        onReply.Invoke(reply);
-    }
-    bool ValidMessageResult(Result result)
-    {
-        if (result == null || !string.IsNullOrEmpty(result.error)
-            || result.session_id != sessionId || string.IsNullOrWhiteSpace(result.reply)
-            || result.turn != turn+1 || result.turn > 5
-            || result.remaining != 5-result.turn) return false;
-        if (result.turn < 5)
-            return result.decision == "pending" && !result.door_open;
-        return (result.decision == "allow" && result.door_open)
-            || (result.decision == "deny" && !result.door_open);
-    }
-    void ShowRetryResponse(string message)
-    {
-        // Uygulama hata karşılığıdır; model cevabı sayılmaz ve tur artırılmaz.
-        status = "Konuşma hakkın azalmadı. Kalan hak: " + (5-turn) + "/5";
         string reply = "Ne dediğini anlayamadım. Biraz daha açık anlatır mısın?";
         transcript += "\nSen: " + message + "\nRobot: " + reply + "\n";
         scrollToBottom = true;

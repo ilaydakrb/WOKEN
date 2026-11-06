@@ -1,0 +1,725 @@
+{
+    "recordedUtc": "2026-11-06T06:35:12.2126470Z",
+    "unity": "6000.6.5f1",
+    "scene": "Assets/Scenes/CharactersOnly.unity",
+    "processor": "Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz",
+    "graphics": "NVIDIA GeForce GTX 1650 Ti",
+    "method": "Actual Play mode; existing scene bake + RobotMovementController.StartMoveTask. Three starts x two goals x three repeats. Other Woken task/UI scripts disabled and player physics disabled to isolate static-world navigation. No controller/scene source change.",
+    "setupError": "",
+    "ramMB": 8059,
+    "graphicsMB": 3962,
+    "total": 18,
+    "successCount": 14,
+    "timeScale": 1.0,
+    "fixedDeltaTime": 0.019999992102384567,
+    "timeoutSeconds": 15.0,
+    "arrivalTolerance": 0.30000001192092896,
+    "moveSpeed": 4.0,
+    "successRatePercent": 77.77777862548828,
+    "meanSuccessSeconds": 2.010113477706909,
+    "meanSuccessSimulationSeconds": 2.0144739151000977,
+    "trials": [
+        {
+            "id": 1,
+            "startId": 1,
+            "goalId": 1,
+            "repetition": 1,
+            "corners": 4,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.220962047576904,
+                "y": 4.785800933837891
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.7091360092163086,
+            "simulationSeconds": 2.7113261222839355,
+            "plannedLength": 10.09750747680664,
+            "travelled": 10.085177421569824,
+            "finalDistance": 0.025319190695881844
+        },
+        {
+            "id": 2,
+            "startId": 1,
+            "goalId": 1,
+            "repetition": 2,
+            "corners": 4,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.215601444244385,
+                "y": 4.789275169372559
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.6624338626861572,
+            "simulationSeconds": 2.675044298171997,
+            "plannedLength": 10.09750747680664,
+            "travelled": 10.079878807067871,
+            "finalDistance": 0.018932975828647614
+        },
+        {
+            "id": 3,
+            "startId": 1,
+            "goalId": 1,
+            "repetition": 3,
+            "corners": 4,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.218621253967285,
+                "y": 4.787276744842529
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.7213006019592285,
+            "simulationSeconds": 2.7244648933410645,
+            "plannedLength": 10.09750747680664,
+            "travelled": 10.082807540893555,
+            "finalDistance": 0.022553682327270508
+        },
+        {
+            "id": 4,
+            "startId": 1,
+            "goalId": 2,
+            "repetition": 1,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.712819576263428,
+                "y": -0.0055930763483047485
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.2691707611083984,
+            "simulationSeconds": 2.2772839069366455,
+            "plannedLength": 8.331290245056152,
+            "travelled": 8.385255813598633,
+            "finalDistance": 0.013986739329993725
+        },
+        {
+            "id": 5,
+            "startId": 1,
+            "goalId": 2,
+            "repetition": 2,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.713569641113281,
+                "y": -0.005862632766366005
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.226867198944092,
+            "simulationSeconds": 2.22281813621521,
+            "plannedLength": 8.331290245056152,
+            "travelled": 8.3856201171875,
+            "finalDistance": 0.014782109297811985
+        },
+        {
+            "id": 6,
+            "startId": 1,
+            "goalId": 2,
+            "repetition": 3,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.784765720367432,
+                "y": -0.03632338345050812
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.331913471221924,
+            "simulationSeconds": 2.338366985321045,
+            "plannedLength": 8.331290245056152,
+            "travelled": 8.327221870422363,
+            "finalDistance": 0.09222064912319183
+        },
+        {
+            "id": 7,
+            "startId": 2,
+            "goalId": 1,
+            "repetition": 1,
+            "corners": 2,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -8.11788272857666,
+                "y": 4.48757266998291
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": false,
+            "outcome": "NoRoute",
+            "pathStatus": "PathComplete",
+            "seconds": 3.1635265350341797,
+            "simulationSeconds": 1.4220972061157227,
+            "plannedLength": 4.964876651763916,
+            "travelled": 3.9952778816223145,
+            "finalDistance": 0.9695981740951538
+        },
+        {
+            "id": 8,
+            "startId": 2,
+            "goalId": 1,
+            "repetition": 2,
+            "corners": 2,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.228498935699463,
+                "y": 4.790311336517334
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 1.5574944019317627,
+            "simulationSeconds": 1.5721205472946167,
+            "plannedLength": 4.964876651763916,
+            "travelled": 4.934775352478027,
+            "finalDistance": 0.030101371929049492
+        },
+        {
+            "id": 9,
+            "startId": 2,
+            "goalId": 1,
+            "repetition": 3,
+            "corners": 2,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.227689266204834,
+                "y": 4.790587425231934
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 1.3707282543182373,
+            "simulationSeconds": 1.3709317445755005,
+            "plannedLength": 4.964876651763916,
+            "travelled": 4.935630798339844,
+            "finalDistance": 0.029245924204587936
+        },
+        {
+            "id": 10,
+            "startId": 2,
+            "goalId": 2,
+            "repetition": 1,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.705686569213867,
+                "y": 0.002633163705468178
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.1889121532440186,
+            "simulationSeconds": 2.1835498809814453,
+            "plannedLength": 8.120390892028809,
+            "travelled": 8.145136833190918,
+            "finalDistance": 0.006266802549362183
+        },
+        {
+            "id": 11,
+            "startId": 2,
+            "goalId": 2,
+            "repetition": 2,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.7123589515686035,
+                "y": 0.005761651322245598
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.178948402404785,
+            "simulationSeconds": 2.186553478240967,
+            "plannedLength": 8.120390892028809,
+            "travelled": 8.144613265991211,
+            "finalDistance": 0.013636168092489243
+        },
+        {
+            "id": 12,
+            "startId": 2,
+            "goalId": 2,
+            "repetition": 3,
+            "corners": 6,
+            "requestedStart": {
+                "x": -11.899999618530273,
+                "y": 3.200000047683716
+            },
+            "actualStart": {
+                "x": -11.899999618530273,
+                "y": 3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.706941604614258,
+                "y": 0.0032282769680023193
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 2.197723150253296,
+            "simulationSeconds": 2.2032783031463623,
+            "plannedLength": 8.120390892028809,
+            "travelled": 8.148165702819824,
+            "finalDistance": 0.007655737921595573
+        },
+        {
+            "id": 13,
+            "startId": 3,
+            "goalId": 1,
+            "repetition": 1,
+            "corners": 2,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.199999809265137,
+                "y": 2.099452495574951
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": false,
+            "outcome": "NoRoute",
+            "pathStatus": "PathComplete",
+            "seconds": 1.4389264583587646,
+            "simulationSeconds": 1.444750428199768,
+            "plannedLength": 8.000006675720215,
+            "travelled": 5.2994537353515625,
+            "finalDistance": 2.7005486488342285
+        },
+        {
+            "id": 14,
+            "startId": 3,
+            "goalId": 1,
+            "repetition": 2,
+            "corners": 2,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.199999809265137,
+                "y": 2.091517448425293
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": false,
+            "outcome": "NoRoute",
+            "pathStatus": "PathComplete",
+            "seconds": 1.4503087997436523,
+            "simulationSeconds": 1.4547618627548218,
+            "plannedLength": 8.000006675720215,
+            "travelled": 5.291518688201904,
+            "finalDistance": 2.7084836959838867
+        },
+        {
+            "id": 15,
+            "startId": 3,
+            "goalId": 1,
+            "repetition": 3,
+            "corners": 2,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -7.199999809265137,
+                "y": 4.800000190734863
+            },
+            "actualGoal": {
+                "x": -7.199999809265137,
+                "y": 4.80000114440918
+            },
+            "finalPosition": {
+                "x": -7.199999809265137,
+                "y": 2.1465461254119873
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": false,
+            "outcome": "NoRoute",
+            "pathStatus": "PathComplete",
+            "seconds": 1.445626139640808,
+            "simulationSeconds": 1.4396402835845947,
+            "plannedLength": 8.000006675720215,
+            "travelled": 5.3465471267700195,
+            "finalDistance": 2.6534550189971924
+        },
+        {
+            "id": 16,
+            "startId": 3,
+            "goalId": 2,
+            "repetition": 1,
+            "corners": 4,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.750225067138672,
+                "y": -0.020569011569023132
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 1.2427680492401123,
+            "simulationSeconds": 1.2405321598052979,
+            "plannedLength": 4.386452674865723,
+            "travelled": 4.370641231536865,
+            "finalDistance": 0.05427394062280655
+        },
+        {
+            "id": 17,
+            "startId": 3,
+            "goalId": 2,
+            "repetition": 2,
+            "corners": 4,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.722095966339111,
+                "y": -0.008552303537726402
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 1.2372065782546997,
+            "simulationSeconds": 1.2458176612854004,
+            "plannedLength": 4.386452674865723,
+            "travelled": 4.4144816398620605,
+            "finalDistance": 0.023693500086665154
+        },
+        {
+            "id": 18,
+            "startId": 3,
+            "goalId": 2,
+            "repetition": 3,
+            "corners": 4,
+            "requestedStart": {
+                "x": -7.199999809265137,
+                "y": -3.200000047683716
+            },
+            "actualStart": {
+                "x": -7.199999809265137,
+                "y": -3.2000010013580322
+            },
+            "requestedGoal": {
+                "x": -4.699999809265137,
+                "y": 0.0
+            },
+            "actualGoal": {
+                "x": -4.699999809265137,
+                "y": -4.172168832639045e-9
+            },
+            "finalPosition": {
+                "x": -4.744446754455566,
+                "y": -0.017514457926154137
+            },
+            "startSampled": true,
+            "goalSampled": true,
+            "warped": true,
+            "accepted": true,
+            "success": true,
+            "outcome": "Completed",
+            "pathStatus": "PathComplete",
+            "seconds": 1.2469874620437622,
+            "simulationSeconds": 1.2505478858947754,
+            "plannedLength": 4.386452674865723,
+            "travelled": 4.387413501739502,
+            "finalDistance": 0.04777328670024872
+        }
+    ]
+}

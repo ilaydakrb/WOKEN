@@ -19,8 +19,8 @@ Ayrıca oyuncunun NPC ile Türkçe yazılı iletişim kurabildiği, NPC'nin konu
 - **Unity:** Oyun ortamının, sahnelerin ve oynanış mekaniklerinin geliştirilmesi için seçildi.
 - **C#:** Oyuncu hareketleri, robot davranışları ve oyun içi etkileşimlerin programlanması için kullanıldı.
 - **NavMeshPlus ve AI Navigation:** Yardımcı robotun rota oluşturması ve hedef noktalara hareket etmesi için kullanıldı.
-- **Ollama ve Gemma:** Yerel dil modeli üzerinden dinamik NPC diyaloglarının geliştirilmesi için seçildi.
-- **Python:** Yerel LLM sisteminin bağımsız olarak geliştirilmesi ve test edilmesi için planlandı.
+- **Ollama ve Gemma:** Tam etiket `gemma3-lab-text:latest`, kaynak `gemma3:4b`; yaklaşık 3,9B parametreli Q4_K_M metin profili yerel çalıştırılıyor.
+- **Python:** Yerel oyun API'si, değerlendirme ve testler için kullanılıyor. Çalışma paketi LLMService içindedir; üçüncü taraf pip paketi gerekmez.
 - **Git ve GitHub:** Sürüm kontrolü ve ekip içi kod paylaşımı için kullanıldı.
 
 ## 4. Geliştirme Aşamaları
@@ -39,7 +39,11 @@ Robotun oyuncuyu takip etmesi ve hedef noktalara hareket etmesi için NavMesh ta
 
 ### Yerel LLM Sistemi
 
-NPC diyalogları için Ollama üzerinden Gemma modelinin kullanılması planlandı. NPC'nin Türkçe dinamik yanıtlar üretmesi, beş farklı duygu durumunu desteklemesi ve yapılandırılmış JSON çıktıları oluşturması hedeflendi.
+NPC diyaloglarında Ollama üzerinde `gemma3-lab-text:latest` kullanılıyor; kaynak `gemma3:4b` modelidir. Ağırlık eğitimi/fine-tuning yapılmadı; hazır model sistem talimatları, her tura özel bağlam ve Python karar kurallarıyla yönlendiriliyor. İlk dört tur, beşinci tur ve olgu çıkarımı için kullanılan gerçek sistem metinleri [sistem mimarisinde](../mimari/sistem-mimarisi.md#gerçek-model-bilgisi-ve-system-prompt) ve README'nin 9. bölümünde yer alır.
+
+### Donanıma göre model tercihi
+
+Yerel doğrulamada i7-10750H, 8 GB RAM ve GTX 1650 Ti / 4 GiB VRAM kullanıldığı görüldü. `gemma3-lab-text:latest` yaklaşık 3,9B Q4_K_M metin profilidir; canlı Ollama kaydında dosya boyutu yaklaşık 2,50 GB'dir. Windows ve Unity'ye alan bırakmak için düşük bitli ağırlık temsili ve 2048 token bağlam kullanılıyor. Dosya boyutu tepe RAM/VRAM tüketimi olarak sunulmuyor. Tarihsel tam model testinde 40 mesajın ortalaması 18,40 sn, ilk Unity bağlantısında tek yanıt 105,45 sn idi; hızlı yanıt garantisi yoktur. Ayrıntılı donanım, bellek sınırları ve ölçüm kapsamı sistem mimarisi belgesindeki ilgili bölümde açıklanmıştır. Eski üç donanım fotoğrafı kaldırılmıştır.
 
 ### Entegrasyon ve Test
 

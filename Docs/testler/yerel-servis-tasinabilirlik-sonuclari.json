@@ -1,0 +1,65 @@
+{
+  "recordedUtc": "2026-11-06T07:17:19.943955+00:00",
+  "other_computer_tested": false,
+  "method": "Same Windows PC, independent copy in a directory containing spaces. Existing Python/Ollama/base weights reused; new temporary text profile actually created; copied service started on 18768 and returned real model text. Main profile not overwritten. This is not a fresh OS or second-computer installation.",
+  "python": "3.14.5",
+  "ollama_version": "0.40.14",
+  "profile_setup_created": true,
+  "temporary_profile_removed": true,
+  "original_profile_unchanged": true,
+  "rule_tests_passed": 20,
+  "api_test_methods_passed": 2,
+  "controlled_api_failure_types_passed": 5,
+  "copied_service_real_response": {
+    "model": "gemma3-woken-package-check-da35e8a9",
+    "api_url": "http://127.0.0.1:18768",
+    "message_test": true,
+    "ok": true,
+    "ollama_model_accessible": true,
+    "health": {
+      "ok": true,
+      "model": "gemma3-woken-package-check-da35e8a9",
+      "api_version": "1.1-error-recovery"
+    },
+    "reply": {
+      "turn": 1,
+      "reply": "Anlıyorum, susadığınızı ve dışarı çıkmak istediğinizi belirtiyorsunuz. Bu durumun ayrılma nedeninizle bağlantılı olup olmadığını merak ediyorum.",
+      "score": 20,
+      "decision": "pending",
+      "seconds": 60.76,
+      "session_id": "5ef6a4a40dd94aae9f19721f9e015752",
+      "remaining": 4,
+      "door_open": false
+    },
+    "seconds": 60.92
+  },
+  "packaged_default_service": {
+    "model": "gemma3-lab-text:latest",
+    "api_url": "http://127.0.0.1:8765",
+    "message_test": false,
+    "ok": true,
+    "ollama_model_accessible": true,
+    "health": {
+      "ok": true,
+      "model": "gemma3-lab-text:latest",
+      "api_version": "1.1-error-recovery"
+    },
+    "seconds": 0.04
+  },
+  "source_hashes": {
+    ".gitignore": "ddfa8e9b707abb2d9d3a08ee6453067c0861bacd3d823ce76b35502ac1259be0",
+    "API_BASLAT.bat": "b1e4184cd395bc7e2f96b6363b381fc90573e74975447aa3e89c6da41f988103",
+    "api_sunucu.py": "45de813a109828915a988af6dd8bd1df7cb390928047b438a824ae515b5e268d",
+    "api_testleri.py": "e195d53d6c18d4cc4ff409e3a52f4e07760de93ac338f9e9490e900982940d06",
+    "karar.py": "2d0e10e46df099e2bfbe8792401ecd25d3126228ce9dc9902b49180e223c6b24",
+    "kontrol.py": "6dc73a59eedf620b3d9e8a38509bcae4926b9e252b3d64f8db22a119d998d217",
+    "kurulum.py": "292d580426f3ad870663cb78c41980a8f167d4c6f181aae5f71287217a99413d",
+    "politika.json": "8c838958226c8a82c2b4f944ef9f0c44bf9f3b9b666ef6945d2c5c10869f9c45",
+    "proje.json": "88ef8843007f6af64f587fa50e37d84f77f22ccdaa530c5a9e00e186130f7a7d",
+    "requirements.txt": "384028ec9d4c28d9f6e96598fd5ffc8b8c68fb526712359b1f946b5616266f30",
+    "robot.py": "656412cb896b0c2ebdc5c622ad1e9e80d1af56ac5cb8dc6b6552ae21aaef7067",
+    "rol.txt": "a12c3057313770bdcef45afd567998fb5c74ee5eec9a641da08a0d367762bf17",
+    "senaryo_testi.py": "249638c65b330493ed77283e9906fc28062944afef8faf00b816782fa2c18dbf",
+    "testler.py": "634ac18080e014f2c0ea9fc5659c7285f0479fe2a7af94f535f20c4ec1febebe"
+  }
+}

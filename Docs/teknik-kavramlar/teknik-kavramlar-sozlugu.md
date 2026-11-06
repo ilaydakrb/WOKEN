@@ -26,6 +26,10 @@
 - **Yerel LLM:** Bilgisayarda yerel olarak çalıştırılan dil modeli.
 - **Ollama:** Yerel dil modellerini çalıştırmayı ve yönetmeyi sağlayan araç.
 - **Prompt:** Dil modeline gönderilen talimat ve bağlam.
+- **System prompt:** Modelin rolünü ve cevap biçimini belirleyen talimat. Projede ilk dört sohbet turu, beşinci tur ve olgu çıkarımı için ayrı gerçek metinler kullanılır; metinler sistem mimarisi belgesindedir.
+- **Model etiketi:** Ollama'daki model/profil kimliği. WOKEN'in kullandığı etiket `gemma3-lab-text:latest`, kaynak model `gemma3:4b`'dir.
+- **Nicemleme (Q4_K_M):** Model ağırlıklarını daha az bellekle saklamak için kullanılan temsil. Bu model profili yaklaşık 3,9B parametrelidir.
+- **Talimatlarla yönlendirme:** Hazır modele her istekte rol ve bağlam gönderilmesidir; ağırlıkların öğrenilerek değiştirilmesi anlamına gelmez. WOKEN'de fine-tuning yapılmadı.
 - **Model Yanıtı Doğrulama:** Model çıktısının beklenen biçim ve kurallara uygunluğunun kontrol edilmesi.
 
 ## 4. İletişim ve Veri Yönetimi

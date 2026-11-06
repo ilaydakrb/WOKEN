@@ -1,0 +1,2 @@
+# No third-party Python packages. Standard library only.
+# Tested with Python 3.14.5 (64-bit); Python 3.11+ recommended.

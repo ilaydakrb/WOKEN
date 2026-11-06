@@ -41,7 +41,8 @@
 
 - Oyun ile yerel Gemma dil modeli arasında iletişim kurulması planlandı.
 - Oyuncunun Gemma'ya mesaj gönderebilmesi için gerekli yapı tasarlandı.
-- Gemma'nın yanıtlarının oyun bağlamı ve senaryoyla uyumlu olması hedeflendi.
+- Kullanılan model `gemma3-lab-text:latest`, kaynağı `gemma3:4b` olarak gerçek servis yapılandırmasından doğrulandı. Ağırlık eğitimi yapılmadı; talimatlarla yönlendirme kullanılıyor.
+- İlk dört tur, beşinci tur ve gerekçe/risk çıkarımı için gerçek system prompt metinleri README ve sistem mimarisi belgesine eklendi.
 - Beş farklı duygu durumuna göre yanıt tarzları planlandı.
 - İstek, yanıt, bağlantı hatası ve zaman aşımı durumlarının yönetilmesi kararlaştırıldı.
 - LLM yanıtlarının oyun içindeki görevleri kontrolsüz biçimde değiştirmesini engelleyecek kurallar belirlendi.
@@ -58,7 +59,7 @@
 ## 8. Dokümantasyon ve Teslim
 
 - Sistem mimarisinin LLM bağlantısı tamamlandıktan sonra güncellenmesi planlandı.
-- README ve gerekli kurulum/çalıştırma yönergelerinin hazırlanması kararlaştırıldı.
+- Python servis paketi LLMService klasörüne eklendi; model profili kurulum ve API başlatma yönergeleri README'de tamamlandı. Aynı bilgisayarda taşınmış kopya testi geçti; başka bilgisayarda temiz kurulum bekliyor.
 - Test sonuçlarının ve bilinen sınırlamaların dokümante edilmesi planlandı.
 - Projenin son sürümünün GitHub üzerinde düzenlenmesi kararlaştırıldı.
 - Sunum ve teslim materyallerinin hazırlanması planlandı.

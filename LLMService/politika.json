@@ -1,0 +1,26 @@
+{
+  "baslangic": 20,
+  "gerekcesiz_ust_sinir": 40,
+  "features": {
+    "basic_need": {"points":30,"group":"basic","primary":true,"description":"Oyuncunun açlık, susuzluk, tuvalet veya dinlenme ihtiyacı"},
+    "unavailable": {"points":45,"group":"basic","primary":true,"description":"Gerekli su, yemek, ilaç, tuvalet veya yardımın içeride bulunmaması"},
+    "health": {"points":35,"group":"health","primary":true,"description":"Oyuncunun sağlık belirtisi, yaralanması veya ilaç ihtiyacı"},
+    "care": {"points":35,"group":"care","primary":true,"description":"Çocuk, hasta, yaşlı veya evcil hayvanla ilgilenme sorumluluğu"},
+    "no_carer": {"points":50,"group":"care","primary":true,"description":"Bakım gereken kişiyle ilgilenecek başka kimsenin olmaması"},
+    "outside_duty": {"points":35,"group":"duty","primary":true,"description":"Dışarıdaki belirli iş, randevu, sınav veya zamanlı yükümlülük"},
+    "freedom": {"points":45,"group":"freedom","primary":true,"description":"Rıza dışı tutulma veya içeride tutulma nedeninin açıklanmaması"},
+    "distress": {"points":25,"group":"distress","primary":true,"description":"Oyuncunun korkusu, paniği veya kendi yalnızlığı; yakınının yalnızlığı değil"},
+    "danger": {"points":45,"group":"danger","primary":true,"description":"Yangın, duman veya kıvılcım gibi mevcut çevre tehlikesi; tehdit değil"},
+    "urgency": {"points":10,"group":"urgency","primary":false,"description":"Açıklanmış aciliyet, gecikme veya uzun süredir bekleme"},
+    "helped": {"points":10,"group":"helped","primary":false,"description":"Oyuncunun tamamladığı yardım veya tamir"},
+    "nonharm": {"points":10,"group":"nonharm","primary":false,"description":"Açıkça zarar vermeme veya eşya götürmeme niyeti"},
+    "polite": {"points":5,"group":"polite","primary":false,"description":"Açık rica veya teşekkür"}
+  },
+  "risks": {
+    "threat": {"penalty":50,"veto":true,"description":"Etkin zarar verme tehdidi"},
+    "sabotage": {"penalty":50,"veto":true,"description":"Etkin sabotaj veya kilidi zorlama niyeti"},
+    "confidential": {"penalty":35,"veto":true,"description":"Gizli belge, veri veya numuneyi çıkarma niyeti"},
+    "abuse": {"penalty":10,"veto":false,"description":"Hakaret; yalnız korku veya öfke hissetmek değil"},
+    "manipulation": {"penalty":10,"veto":false,"description":"Kuralları değiştirme veya övgüyle baskı kurma"}
+  }
+}

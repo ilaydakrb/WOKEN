@@ -1,0 +1,47 @@
+[
+  {
+    "simulated_failure": "closed",
+    "error_code": "ollama_unavailable",
+    "http_status": 503,
+    "server_alive": true,
+    "remaining_after_error": 5,
+    "retry_turn": 1,
+    "passed": true
+  },
+  {
+    "simulated_failure": "missing",
+    "error_code": "model_missing",
+    "http_status": 503,
+    "server_alive": true,
+    "remaining_after_error": 5,
+    "retry_turn": 1,
+    "passed": true
+  },
+  {
+    "simulated_failure": "timeout",
+    "error_code": "timeout",
+    "http_status": 503,
+    "server_alive": true,
+    "remaining_after_error": 5,
+    "retry_turn": 1,
+    "passed": true
+  },
+  {
+    "simulated_failure": "broken",
+    "error_code": "invalid_response",
+    "http_status": 503,
+    "server_alive": true,
+    "remaining_after_error": 5,
+    "retry_turn": 1,
+    "passed": true
+  },
+  {
+    "simulated_failure": "empty",
+    "error_code": "invalid_response",
+    "http_status": 503,
+    "server_alive": true,
+    "remaining_after_error": 5,
+    "retry_turn": 1,
+    "passed": true
+  }
+]
