@@ -1,6 +1,6 @@
 # WOKEN — Yapay Zekâ Destekli 2D Bulmaca ve Kaçış Oyunu
 
-**Proje dönemi:** 2026–2027 Güz  |  **Son güncelleme:** 5 Kasım 2026
+**Proje dönemi:** 2026–2027 Güz  
 
 WOKEN, Unity ve C# ile geliştirilen, keşif, bulmaca çözme ve yapay zekâ destekli etkileşimleri hedefleyen 2D bir kaçış oyunudur. Oyuncu, terk edilmiş bir laboratuvarda uyanır; odaları keşfederek görevleri tamamlamaya, gizli bilgileri bulmaya ve çıkış yoluna ulaşmaya çalışır.
 
@@ -187,7 +187,7 @@ Görev tamamlandıktan sonra takip davranışına dönüş, görevi başlatan ak
 
 ### NavMesh ajanı test kapsamı
 
-6 Kasım 2026 tarihinde gerçek Unity Play modunda üç başlangıç konumu ve iki hedef için üçer tekrar yapıldı (18 deneme). Robotun yalnız rota hesaplaması değil, `RobotMovementController.StartMoveTask` ile fiziksel hareketi ve `TaskFinished` sonucu ölçüldü. 14 deneme başarılı, 4 deneme `NoRoute` ile başarısız oldu: başarı oranı **%77,78**. Başarılı denemelerde ortalama hedefe ulaşma süresi **2,01 saniye**. Ayrıntılı yöntem, koşul bazlı tablo ve ham kayıt bağlantısı 12. bölümde yer alır.
+Gerçek Unity Play modunda üç başlangıç konumu ve iki hedef için üçer tekrar yapıldı (18 deneme). Robotun yalnız rota hesaplaması değil, `RobotMovementController.StartMoveTask` ile fiziksel hareketi ve `TaskFinished` sonucu ölçüldü. 14 deneme başarılı, 4 deneme `NoRoute` ile başarısız oldu: başarı oranı **%77,78**. Başarılı denemelerde ortalama hedefe ulaşma süresi **2,01 saniye**. Ayrıntılı yöntem, koşul bazlı tablo ve ham kayıt bağlantısı 12. bölümde yer alır.
 
 ## 9. Gemma ile Yerel LLM Diyaloğu
 
@@ -261,14 +261,12 @@ Return only JSON.
 
 İngilizce olgu çıkarım talimatı yalnız iç JSON değerlendirmesi içindir; oyuncuya gösterilecek sohbet cevabı Türkçe istenir. Kaynak kodda bu metin `karar.py` içindeki `EXTRACT_PROMPT` değişkenidir. JSON alanları ayrıca şemayla sınırlandırılır.
 
-**Her tur eklenen bağlam ve karar:** `robot.py` içindeki `speech_messages()` açıklanmış gerekçeleri/riskleri, son oyuncu mesajını, tur sayısını ve tutuma uygun görevi ayrı kullanıcı/bağlam mesajında ekler. `Game.send()` ilk dört turda yalnız sohbet, beşinci turda kesin izin/ret bilgisi verir. Beş mesaj sınırı, puan hesabı, %65 kabul eşiği ve engelleyici riskler Python tarafından uygulanır; rol metni tek başına bütün oyun mantığını içermez. Biçimi uygun olmayan bir cevap yeniden üretilirken tek kısa cümlelik yeniden deneme talimatı da eklenebilir.
+**Her tur eklenen bağlam ve karar:** `robot.py` içindeki `speech_messages()` açıklanmış gerekçeleri/riskleri, son oyuncu mesajını, tur sayısını ve tutuma uygun görevi ayrı kullanıcı/bağlam mesajında ekler. `Game.send()` ilk dört turda yalnız sohbet, beşinci turda kesin izin/ret bilgisi verir. Beş mesaj sınırı, puan hesabı, %65 kabul eşiği ve engelleyici riskler Python tarafından uygulanır; rol metni tek başına bütün oyun mantığını içermez.
 
 Python istemcisi mantıksal `system` mesajını Gemma'nın yerel konuşma biçiminde ilk kullanıcı turuna ekleyerek Ollama'ya gönderir; bu işlem modele kalıcı eğitim kaydetmez. Kaynaklar: `proje.json`, `rol.txt`, `karar.py` ve `robot.py` (`speech_messages`, `Game.send`, `Ollama.chat`). Bu servis dosyaları depodaki `LLMService` klasöründedir; yukarıdaki metinler paketteki kaynaklarla aynıdır.
 
 
 ### Donanıma göre model seçimi ve bellek sınırları
-
-Donanım ve yerel model bilgileri 6 Kasım 2026 tarihinde yeniden kontrol edildi. Eski üç donanım fotoğrafı kaldırıldı; oyun/diyalog ekran görüntüleri korunuyor.
 
 | Bileşen | Doğrulanan bilgi | Kaynak |
 |---|---|---|
@@ -287,8 +285,7 @@ Oyun yalnız metin kullandığından Gemma 3 4B'nin metin ağırlıklarından ol
 
 **Bellek sınırı:** Model dosyası dışında KV önbelleği, çıkarım tamponları ve Unity/Windows da bellek kullanır. Bu nedenle uygulama bağlamı 2048 tokenla sınırlıdır; modelin metadata içindeki azami bağlamı otomatik olarak kullanılmaz. RAM veya paylaşılan GPU belleği, ayrılmış 4 GiB VRAM'e eklenerek daha büyük bağımsız GPU belleği gibi gösterilmez. Bu kontrolde Ollama `/api/ps` modelin yüklenmediğini bildirdi; bu yüzden yeni bir tepe model-RAM/VRAM tüketimi veya %100 GPU yerleşimi ölçülmüş gibi raporlanmaz. Anlık boş RAM ve GPU belleği diğer uygulamalara göre değişir; ölçüm anındaki boş RAM yaklaşık 0.59 GiB idi, bu bir minimum donanım gereksinimi değildir.
 
-**Kayıtlı yanıt süreleri:** Bu belge güncellemesinde yeni bir hız testi yapılmadı; aşağıdaki sayılar daha önce gerçekten kaydedilmiş ölçümlerdir.
-
+**Kayıtlı yanıt süreleri:** 
 | Ölçüm | Örnek sayısı | Ortalama | Ortanca | En kısa–en uzun | Kapsam |
 |---|---:|---:|---:|---:|---|
 | Geliştirme senaryo testi | 40 mesaj | 18,40 sn | 16,84 sn | 13,74–35,06 sn | Olgu çıkarımı + sohbet üretimi; `son-dogrulama.json` |
@@ -358,7 +355,7 @@ Unity istemcisinin beklediği yanıt:
 }
 ```
 
-`/session` isteği de aynı `Payload` C# tipinden oluşturuldu; oturum oluşturma yanıtında istemci `session_id` bekledi. Tam yanıt alanlarının servis kaynak kodundan doğrulanması gerekir.
+`/session` isteği de aynı `Payload` C# tipinden oluşturuldu; oturum oluşturma yanıtında istemci `session_id` bekledi.
 
 ### Yanıtın kapı kararına bağlanması
 
@@ -511,7 +508,7 @@ Oyuncu hareketi, oda geçişleri, nesne etkileşimleri, bulmacalar ve robot gör
 
 ### LLM hata davranışının doğrulanma durumu
 
-**6 Kasım 2026 — bağlantı uyarısı ve kayıp yanıt eşitlemesi:** Teknik hatalar robotun söylediği bir replik gibi gösterilmez. Sohbetin üzerinde ayrı, ortalanmış **“Robot bağlantı uyarısı”** penceresi açılır. Robot servisine ulaşılamama, Ollama erişim hatası, model bulunamaması, zaman aşımı ve geçersiz yanıt için ayrı açıklamalar gösterilir. **Tamam** veya **Esc** ile uyarı kapanır; yazılan mesaj korunur. Uyarı açıkken yeni mesaj gönderilmez.
+**Bağlantı uyarısı ve kayıp yanıt eşitlemesi:** Teknik hatalar robotun söylediği bir replik gibi gösterilmez. Sohbetin üzerinde ayrı, ortalanmış **“Robot bağlantı uyarısı”** penceresi açılır. Robot servisine ulaşılamama, Ollama erişim hatası, model bulunamaması, zaman aşımı ve geçersiz yanıt için ayrı açıklamalar gösterilir. **Tamam** veya **Esc** ile uyarı kapanır; yazılan mesaj korunur. Uyarı açıkken yeni mesaj gönderilmez.
 
 **Hak ve tur güvenliği:** Sunucu işlemin başarısız olduğunu doğruladığında “Konuşma hakkın azalmadı. Kalan hak: …/5” gösterilir. Yanıtın ağda kaybolması halinde sunucu mesajı zaten işlemiş olabilir; bu durumda yanlış biçimde hak korunmuş gibi bildirmek yerine “Yeni mesaj gönderilmedi. Önceki mesajın durumu henüz doğrulanamadı.” gösterilir. Sorun çözülmeden başka bir mesaj gönderilmez.
 
@@ -532,7 +529,7 @@ Oyuncu hareketi, oda geçişleri, nesne etkileşimleri, bulmacalar ve robot gör
 
 Kontrollü testler ayrı yerel uçlar kullanır; üretim Ollama sürecinin fiziksel kapatılması, model dosyalarının silinmesi veya Windows build'de bütün arızaların denenmesi olarak sunulmaz. Aynı şekilde, bağlantı hatası için gösterilen UI bildirimi sabit bir **sistem uyarısıdır**, modelin ürettiği NPC repliği değildir.
 
-### NavMesh ölçüm sonuçları — 6 Kasım 2026
+### NavMesh ölçüm sonuçları
 
 **Test yöntemi:** `Assets/Scenes/CharactersOnly.unity` sahnesi gerçek Unity Editor Play modunda açıldı; oyun tarafından oluşturulan NavMesh, `NavMeshAgent` ve değiştirilmemiş `RobotMovementController` kullanıldı. Üç farklı başlangıçtan iki hedefe üçer tekrar yapıldı. Başlangıç/hedefler en fazla 0,35 birim içinde NavMesh'e örneklendi ve robot her deneme öncesi `Warp` ile yerleştirildi. 18 denemenin tümünde örnekleme, yerleştirme ve ilk tam rota başarılıydı. Başarı, `Completed` olayı ve son konumun hedefe en fazla 0,35 birim uzak olmasıyla doğrulandı; kontrolcünün kendi varış toleransı 0,3 birimdir.
 
@@ -583,7 +580,7 @@ Başlangıçlar: **S1=(-11,9; -3,2)**, **S2=(-11,9; 3,2)**, **S3=(-7,2; -3,2)**.
 
 ![WOKEN depo odası](Docs/screenshots/03-depo.jpg)
 
-**Asansör odası**
+**Elektrikli kapı odası**
 
 ![WOKEN asansör odası](Docs/screenshots/04-asansor-odasi.jpg)
 
@@ -688,12 +685,12 @@ Bu proje eğitim amacıyla geliştirildi. Projede kullanılan üçüncü taraf U
 
 ### Teslim kontrolü
 
-PDF teslim maddesine uygun olarak kaynak proje ve Windows 64-bit build tek ZIP arşivinde toplandı. Build Unity 6000.6.5f1 ile başarıyla oluşturuldu; oyun akışı ayrıca oynanarak uçtan uca doğrulanmadı. Git geçmişinde toplam 29 commit İlayda Karabaşoğlu tarafından 14, Sueda Tut tarafından 15 commit olarak kaydedildi.
+PDF teslim maddesine uygun olarak kaynak proje ve Windows 64-bit build tek ZIP arşivinde toplandı. Build Unity 6000.6.5f1 ile başarıyla oluşturuldu; oyun akışı ayrıca oynanarak uçtan uca doğrulanmadı.
 
 ## 19. Sonuç ve Tartışma
 
 WOKEN kapsamında keşif ve bulmaca odaklı 2D laboratuvar oyunu geliştirildi. Oyuncu hareketi, nesne etkileşimleri, oda geçişleri ve batarya koşuluna bağlı elektrikli kapı bir araya getirildi. Yardımcı robot NavMesh ile oyuncuyu takip etti, görev hedeflerine gitti ve hareket yönündeki Raycast sensörleriyle engelleri algılayıp yakın engellerde rotasını yeniledi. Oyuncunun Gemma ile yerel LLM üzerinden yaptığı beş konuşma yaklaşımı ekran çıktılarıyla belgelendi; izin kararı Unity kapı akışına bağlandı.
 
-Çalışmanın sınırları da kayda geçirildi. LLM servisinin kaynakları ve başlatma/kurulum araçları LLMService içinde teslim edilebilir hale getirildi; taşınmış kopya aynı makinede otomatik olarak sınandı; ayrıca başka bilgisayarda kurulum ve çalışma testi tamamlandı ve çalıştığı doğrulandı. Tam system prompt metinleri ve `gemma3-lab-text:latest` / `gemma3:4b` model kimliği gerçek servis kaynaklarından doğrulanıp 9. bölüme eklendi; ağırlık eğitimi yapılmadı. Donanım, model boyutu ve bellek gerekçesi yerel sorgularla 9. bölüme işlendi; üç eski donanım fotoğrafı kaldırıldı. Yeni tepe model belleği veya karşılaştırmalı model performansı ölçülmedi. LLM hata yolları ve kayıp yanıt eşitlemesi için Python API regresyonları ve Unity hata aracı eklendi; üretim Ollama/model dosyalarını fiziksel kapatma/silme ve Windows build arıza testleri yapılmadı. Robotun üç farklı başlangıç ve iki hedefteki 18 ölçümü %77,78 başarı ve başarılı denemelerde 2,01 sn ortalama verdi; dört NoRoute sonucu geliştirmeye açık kaldı. Konu dışı diyalog örneklerinde bağlam tutarlılığı geliştirmeye açık kaldı.
+Çalışmanın sınırları da kayda geçirildi. LLM servisinin kaynakları ve başlatma/kurulum araçları LLMService içinde teslim edilebilir hale getirildi; taşınmış kopya aynı makinede otomatik olarak sınandı; ayrıca başka bilgisayarda kurulum ve çalışma testi tamamlandı ve çalıştığı doğrulandı. Tam system prompt metinleri ve `gemma3-lab-text:latest` / `gemma3:4b` model kimliği gerçek servis kaynaklarından doğrulanıp 9. bölüme eklendi; ağırlık eğitimi yapılmadı. Donanım, model boyutu ve bellek gerekçesi yerel sorgularla 9. bölüme işlendi. Yeni tepe model belleği veya karşılaştırmalı model performansı ölçülmedi. LLM hata yolları ve kayıp yanıt eşitlemesi için Python API regresyonları ve Unity hata aracı eklendi; üretim Ollama/model dosyalarını fiziksel kapatma/silme ve Windows build arıza testleri yapılmadı. Robotun üç farklı başlangıç ve iki hedefteki 18 ölçümü %77,78 başarı ve başarılı denemelerde 2,01 sn ortalama verdi; dört NoRoute sonucu geliştirmeye açık kaldı. Konu dışı diyalog örneklerinde bağlam tutarlılığı geliştirmeye açık kaldı.
 
 Başka bilgisayarda tamamlanan manuel testin makine/sürüm ve ekran kayıtları rapora eklenebilir; internet kapalı çalışma koşulu ayrıca belgelenebilir; model belleğinin tepe tüketimi ve aynı koşullardaki alternatif model karşılaştırmaları ölçülebilir; üretim servisi ve Windows build hata testleri genişletilebilir; NavMesh ölçümünde NoRoute veren rotalar incelenip çoklu başlangıç testleri tekrarlanabilir; konu dışı diyalogların tutarlılığı iyileştirilebilir.

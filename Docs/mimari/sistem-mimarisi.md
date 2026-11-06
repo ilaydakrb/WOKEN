@@ -39,7 +39,7 @@ stateDiagram-v2
 
 Takibe dönüş, görev başlatıcısının `resumeFollowing` ayarına bağlıdır.
 
-**NavMesh ölçümleri — 6 Kasım 2026:** Gerçek Unity Play modunda üç başlangıç konumu ve iki hedef için üçer tekrar yapıldı (18 deneme). `RobotMovementController.StartMoveTask` ile fiziksel hareket ve görev sonucu ölçüldü. 14 deneme başarılı, 4 deneme `NoRoute` ile başarısız oldu; başarı oranı **%77,78**, yalnız başarılı denemelerde ortalama hedefe ulaşma süresi **2,01 saniye** olarak hesaplandı. Başarısız denemeler süre ortalamasına dahil edilmedi.
+**NavMesh ölçümleri:** Gerçek Unity Play modunda üç başlangıç konumu ve iki hedef için üçer tekrar yapıldı (18 deneme). `RobotMovementController.StartMoveTask` ile fiziksel hareket ve görev sonucu ölçüldü. 14 deneme başarılı, 4 deneme `NoRoute` ile başarısız oldu; başarı oranı **%77,78**, yalnız başarılı denemelerde ortalama hedefe ulaşma süresi **2,01 saniye** olarak hesaplandı. Başarısız denemeler süre ortalamasına dahil edilmedi.
 
 Ölçüm statik geometride, diğer görev/UI davranışları ve oyuncu fiziği test için durdurularak yapıldı; tüm oyunun veya script ile yürütülen özel engel geçişlerinin başarı oranı değildir. Kalıcı sahne başlangıcı ve hareket kodu değiştirilmedi. Ayrıntılı yöntem ve koşul bazlı sonuçlar [README'nin NavMesh ölçüm bölümünde](../../README.md#navmesh-ölçüm-sonuçları--6-kasım-2026), deneme kayıtları [ham JSON dosyasında](../testler/navmesh-olcum-sonuclari.json) bulunur.
 
@@ -64,13 +64,12 @@ sequenceDiagram
     Model-->>Service: Yanıt ve karar
     Service-->>Client: JSON
     Client->>Client: Şema ve karar tutarlılığını doğrula
-    alt allow ve door_open=true
+    alt decision=allow and door_open=true
         Client-->>UI: reply göster
         Client->>Door: Konuşma kapatılınca çıkış akışını başlat
-    else deny veya pending
-        Client-->>UI: reply göster; kapıyı açma
-    else ağ, JSON veya şema hatası
-        Client-->>UI: Hata durumunu göster; oyun kararını uygulama
+    else Diğer tüm yanıtlar
+        Client-->>UI: Yanıtı veya hata durumunu göster
+        Client->>Door: Kapı kararını değiştirme
     end
 ```
 

@@ -1,7 +1,5 @@
 # WOKEN — Test Planı
 
-Son güncelleme: **6 Kasım 2026**. Bu belge mevcut kayıtları düzenler; belge güncellemesi sırasında testler yeniden çalıştırılmadı. Ayrıntılı açıklamalar README'de, ham kanıtlar aşağıdaki bağlantılardadır.
-
 ## Durumların anlamı ve test ortamı
 
 - **Tamamlandı / geçti:** Belirtilen kapsamda beklenen davranış kayıtta doğrulandı.
@@ -35,7 +33,7 @@ Tarihsel L2/L3 için yeniden çalıştırılabilir tam senaryo aracı `LLMServic
 
 ## LLM hata dayanıklılığı
 
-Son uygulama: 6 Kasım 2026. Teknik hata robot repliği olarak yazılmaz; ayrı “Robot bağlantı uyarısı” açılır. Uyarı Tamam/Esc ile kapanır. İşlenmemiş istekte hak korunur; sonucun bilinmediği durumda durum açıklanır ve yeni mesajdan önce `/sync` yapılır.
+Teknik hata robot repliği olarak yazılmaz; ayrı “Robot bağlantı uyarısı” açılır. Uyarı Tamam/Esc ile kapanır. İşlenmemiş istekte hak korunur; sonucun bilinmediği durumda durum açıklanır ve yeni mesajdan önce `/sync` yapılır.
 
 ### A. Python API / kontrollü HTTP
 

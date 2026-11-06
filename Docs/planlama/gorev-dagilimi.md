@@ -2,7 +2,7 @@
 
 WOKEN projesi iki kişilik bir ekip tarafından geliştirildi. Görevler ekip üyeleri arasında paylaştırıldı ve geliştirme süreci GitHub üzerinden ortak yürütüldü.
 
-### Sueda
+### Sueda Tut
 
 - Proje klasör yapısı ve dokümantasyon düzeni oluşturuldu.
 - Yardımcı robotun NavMesh tabanlı hareket, oyuncu takibi ve görev davranışları geliştirildi.
@@ -10,7 +10,7 @@ WOKEN projesi iki kişilik bir ekip tarafından geliştirildi. Görevler ekip ü
 - Oyun senaryoları, oda etiketleri ve robot etkileşimleri düzenlendi.
 - Robot sistemindeki teknik hatalar giderildi ve proje dosyaları düzenlendi.
 
-### İlayda
+### İlayda Karabaşoğlu
 
 - Unity projesinin ilk kurulumu gerçekleştirildi ve temel oyun karakterleri eklendi.
 - Laboratuvarın katları, odaları ve çevre tasarımları oluşturuldu.
